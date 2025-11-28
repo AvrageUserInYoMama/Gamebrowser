@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Light Show Bloom</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Prevent scrollbars */
+            justify-content: flex-start; /* Start from top */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex: 1; /* Each row takes equal vertical space */
+            width: 100%;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out; /* Smooth fade in */
+        }
+
+        .row.visible {
+            opacity: 1;
+        }
+
+        .light {
+            /* Width and Height are now set via JS config, but we keep default here just in case */
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background-color: white; /* Fallback */
+            /* The bloom effect is created by multiple shadow layers */
+            box-shadow: 
+                0 0 15px 5px currentColor,
+                0 0 60px 15px currentColor,
+                0 0 100px 30px currentColor;
+            filter: brightness(1.5);
+            transform: scale(0.8);
+            transition: transform 2s ease-out;
+        }
+
+        /* Subtle pulse animation for the lights during the intro */
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.8; }
+        }
+        
+        .row.visible .light {
+            transform: scale(1);
+            animation: pulse 4s infinite ease-in-out;
+        }
+
+        /* Class to trigger the fade out before twinkle mode */
+        body.fade-out .row {
+            opacity: 0 !important;
+            transition: opacity 2s ease-out;
+        }
+
+        /* --- TWINKLE MODE STYLES --- */
+        /* Force rows to be visible (containers), but handle lights individually */
+        body.twinkle-mode .row {
+            opacity: 1 !important;
+            transition: none;
+        }
+
+        /* In twinkle mode, lights default to off/invisible */
+        body.twinkle-mode .light {
+            opacity: 0; 
+            transform: scale(0.8);
+            animation: none; /* Stop the synchronized pulsing */
+            /* Made transition much slower (2.5s) for a slower cycle */
+            transition: opacity 2.5s ease-in-out, transform 2.5s ease-in-out;
+        }
+
+        /* When a specific light turns on in twinkle mode */
+        body.twinkle-mode .light.active {
+            opacity: 1;
+            transform: scale(1.0);
+        }
+
+        /* --- CENTRAL CONTENT STYLES --- */
+        .content-wrapper {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none; /* Click through when invisible */
+            transition: opacity 2.5s ease-in-out;
+            z-index: 100; /* Ensure it sits on top of lights */
+            width: 80%;
+            max-width: 600px;
+        }
+
+        .content-wrapper.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* The "Rectangle" box containing the video */
+        .video-box {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 50px rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 30px; /* Space between box and text */
+        }
+
+        .video-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* The semi-transparent box for the text */
+        .text-box {
+            background: rgba(20, 20, 20, 0.85); /* Dark semi-transparent background */
+            padding: 30px 50px;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px); /* Frosted glass effect */
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+            width: 100%; /* Take full width of the wrapper */
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
+
+        /* Text Under the Rectangle */
+        #appTitle {
+            margin: 0 0 15px 0;
+            font-size: 3rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            color: #fff;
+            text-align: center;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 0, 255, 0.5);
+            line-height: 1;
+        }
+
+        #appLink {
+            font-size: 1.5rem;
+            color: #00FFFF; /* Neon Cyan */
+            text-decoration: none;
+            letter-spacing: 2px;
+            font-weight: 300;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+            transition: all 0.3s ease;
+            border-bottom: 1px solid transparent;
+        }
+
+        #appLink:hover {
+            color: #fff;
+            border-bottom: 1px solid #fff;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 1);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Central Content Wrapper -->
+    <div class="content-wrapper" id="mainContent">
+        
+        <!-- The Rectangle (Video Box) -->
+        <div class="video-box">
+             <video id="appVideo" controls muted loop playsinline>
+                <p>Your browser does not support the video tag.</p>
+            </video>
+        </div>
+
+        <!-- Text Under the Rectangle, now inside its own box -->
+        <div class="text-box">
+            <h1 id="appTitle">WEBSITE NAME</h1>
+            <a id="appLink" href="#" target="_blank">visit website</a>
+        </div>
+    </div>
+
+<script>
+    // --- USER CONFIGURATION START ---
+    const CONFIG = {
+        // Content Text
+        websiteName: "MY AWESOME SITE",
+        websiteLinkText: "www.mysite.com",
+        websiteLinkUrl: "https://www.google.com",
+
+        // Video Settings
+        // Replace this URL with your local file or a direct web link
+        videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+
+        // How long the whole sequence takes to complete (in milliseconds)
+        sequenceDuration: 5000, 
+        
+        // How long to wait after the last row appears before fading (in ms)
+        stayLitDuration: 2000,
+
+        // Twinkle Mode Settings
+        maxSimultaneousLights: 10, // MAXIMUM number of lights allowed on at once
+        twinkleOffMin: 4000,      // Minimum time to stay dark (4s)
+        twinkleOffMax: 12000,     // Maximum time to stay dark (12s)
+        twinkleOnDuration: 3000,  // How long to stay lit (3s)
+
+        // Grid Layout
+        numberOfRows: 5,
+        lightsPerRow: 7,
+        
+        // Visuals
+        lightSize: '100px', // Size of the circles
+        
+        // The list of "Popper" Neon colors to choose from
+        colors: [
+            '#FF00FF', // Neon Magenta
+            '#00FFFF', // Neon Cyan
+            '#39FF14', // Neon Green
+            '#FFFF00', // Neon Yellow
+            '#FF3131', // Neon Red
+            '#BC13FE', // Neon Purple
+            '#FF5F1F', // Neon Orange
+            '#FFFFFF', // White
+            '#4D4DFF', // Neon Blue
+            '#FF007F', // Bright Rose
+            '#E3FF00', // Electric Lime
+            '#00FF99', // Spring Green
+            '#9F00FF', // Vivid Violet
+            '#FF9900', // Vivid Orange
+            '#FF00CC', // Hot Magenta
+            '#00FFCC', // Neon Mint
+            '#FF3300', // Bright Red-Orange
+            '#CC00FF', // Electric Violet
+            '#007FFF', // Azure Radiance
+            '#FF1493', // Deep Pink
+            '#FFD700', // Neon Gold
+            '#7FFF00'  // Chartreuse
+        ]
+    };
+    // --- USER CONFIGURATION END ---
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const container = document.body;
+        
+        // Set Text from Config
+        document.getElementById('appTitle').textContent = CONFIG.websiteName;
+        
+        const linkElement = document.getElementById('appLink');
+        linkElement.textContent = CONFIG.websiteLinkText;
+        linkElement.href = CONFIG.websiteLinkUrl;
+
+        // Set Video Source
+        const videoElement = document.getElementById('appVideo');
+        videoElement.src = CONFIG.videoSource;
+
+        // Calculate timing based on config
+        const intervalTime = CONFIG.sequenceDuration / CONFIG.numberOfRows;
+
+        // Track available colors to prevent repeats
+        let availableColors = [];
+
+        function getRandomPopColor(currentRowColors = []) {
+            // If we ran out of colors, refill the bag with the original list
+            if (availableColors.length === 0) {
+                availableColors = [...CONFIG.colors];
+            }
+            
+            // Filter available colors to try and find ones NOT in the current row
+            const candidates = availableColors.filter(c => !currentRowColors.includes(c));
+            
+            let selection;
+            
+            if (candidates.length > 0) {
+                selection = candidates[Math.floor(Math.random() * candidates.length)];
+            } else {
+                selection = availableColors[Math.floor(Math.random() * availableColors.length)];
+            }
+            
+            const index = availableColors.indexOf(selection);
+            if (index > -1) {
+                availableColors.splice(index, 1);
+            }
+
+            return selection;
+        }
+
+        // Generate all rows immediately
+        const rows = [];
+        for (let r = 0; r < CONFIG.numberOfRows; r++) {
+            const row = document.createElement('div');
+            row.classList.add('row');
+            
+            const rowColors = [];
+
+            for (let i = 0; i < CONFIG.lightsPerRow; i++) {
+                const light = document.createElement('div');
+                light.classList.add('light');
+                
+                light.style.width = CONFIG.lightSize;
+                light.style.height = CONFIG.lightSize;
+                
+                const color = getRandomPopColor(rowColors);
+                rowColors.push(color);
+                
+                light.style.color = color;
+                light.style.backgroundColor = color;
+                
+                row.appendChild(light);
+            }
+            container.appendChild(row);
+            rows.push(row);
+        }
+
+        // --- Twinkle Mode Logic ---
+
+        // Counter to track how many lights are currently ON
+        let activeLightsCount = 0;
+
+        function startTwinkleMode() {
+            // Enable Twinkle Mode CSS
+            document.body.classList.add('twinkle-mode');
+            
+            const allLights = document.querySelectorAll('.light');
+            
+            allLights.forEach(light => {
+                // Give each light a random start delay spread out over the max off time
+                // to prevent them all starting at once
+                const startDelay = Math.random() * CONFIG.twinkleOffMax;
+                setTimeout(() => {
+                    scheduleBlink(light);
+                }, startDelay);
+            });
+        }
+
+        function scheduleBlink(light) {
+            // CHECK: Are there too many lights on already?
+            if (activeLightsCount >= CONFIG.maxSimultaneousLights) {
+                // If yes, wait a short random time (0.5s - 1.5s) and try again
+                const retryDelay = Math.random() * 1000 + 500;
+                setTimeout(() => {
+                    scheduleBlink(light);
+                }, retryDelay);
+                return; // Stop here, don't turn on yet
+            }
+
+            // 1. Turn the light ON and increment counter
+            light.classList.add('active');
+            activeLightsCount++;
+
+            // 2. Wait for the ON duration
+            setTimeout(() => {
+                // 3. Turn the light OFF and decrement counter
+                light.classList.remove('active');
+                activeLightsCount--;
+
+                // 4. Wait for a random OFF duration before restarting the cycle
+                const offDuration = Math.random() * (CONFIG.twinkleOffMax - CONFIG.twinkleOffMin) + CONFIG.twinkleOffMin;
+                
+                setTimeout(() => {
+                    scheduleBlink(light);
+                }, offDuration);
+
+            }, CONFIG.twinkleOnDuration);
+        }
+
+        // --- Main Sequence Logic ---
+        let currentRow = 0;
+
+        const intervalId = setInterval(() => {
+            if (currentRow < rows.length) {
+                rows[currentRow].classList.add('visible');
+                currentRow++;
+            } else {
+                clearInterval(intervalId);
+                
+                // Sequence finished, wait then fade out
+                setTimeout(() => {
+                    document.body.classList.add('fade-out');
+                    
+                    // After fade out is complete, switch to Twinkle Mode AND show content
+                    setTimeout(() => {
+                         rows.forEach(r => r.classList.remove('visible')); // Clean up old class
+                         document.body.classList.remove('fade-out'); // Remove fade class
+                         
+                         startTwinkleMode(); // Start new mode
+                         
+                         // Show the central content
+                         document.getElementById('mainContent').classList.add('visible');
+                         
+                         // Try to auto-play video (browsers might block unmuted autoplay)
+                         const vid = document.getElementById('appVideo');
+                         vid.play().catch(e => console.log("Autoplay prevented:", e));
+
+                    }, 2000); 
+
+                }, CONFIG.stayLitDuration);
+            }
+        }, intervalTime);
+    });
+</script>
+
+</body>
+</html>
