@@ -5,761 +5,771 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Light Show Bloom</title>
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            margin: 0;
-            padding: 0;
-            background-color: black;
-            height: 100vh;
-            width: 100vw;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden; /* Prevent scrollbars */
-            justify-content: flex-start; /* Start from top */
+            background: #000;
+            height: 100vh; width: 100vw;
+            overflow: hidden;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-
-        /* Container for the lights to make clearing them easier */
-        #lightsContainer {
+        canvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            z-index: 1;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
         }
+        #bgCanvas  { z-index: 0; }
+        #fxCanvas  { z-index: 1; pointer-events: none; }
 
-        .row {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            flex: 1; /* Each row takes equal vertical space */
-            width: 100%;
-        }
-
-        .light {
-            /* Default base styles */
-            opacity: 0; /* Start invisible for custom animations */
-            transition: transform 2s ease-out, opacity 0.5s ease;
-        }
-
-        .light.visible {
-            opacity: 1;
-        }
-
-        /* --- THEME VISUAL STYLES --- */
-
-        /* THEME 1: ROUND POP (Default) */
-        .theme-pop .light {
-            border-radius: 50%;
-            filter: brightness(1.5);
-            box-shadow: 0 0 15px 5px currentColor, 0 0 60px 15px currentColor, 0 0 100px 30px currentColor;
-            transform: scale(0.8);
-        }
-
-        /* THEME 2: SQUARE CYBER */
-        .theme-cyber .light {
-            border-radius: 4px; 
-            filter: brightness(1.8) contrast(1.2);
-            box-shadow: 0 0 10px 2px currentColor, 0 0 40px 10px currentColor, 0 0 80px 20px currentColor;
-            transform: scale(0.9) rotate(45deg); 
-        }
-
-        /* THEME 3: SUNSET HAZE */
-        .theme-sunset .light {
-            border-radius: 50%;
-            filter: brightness(1.2) blur(5px); 
-            box-shadow: 0 0 20px 10px currentColor, 0 0 80px 30px currentColor, 0 0 120px 50px currentColor;
-            transform: scale(0.7);
-        }
-
-        /* NEW: SHARP (Hard squares, no rotate) */
-        .theme-sharp .light {
-            border-radius: 0;
-            filter: brightness(1.4);
-            box-shadow: 0 0 5px 2px currentColor, 0 0 20px 5px currentColor;
-            transform: scale(0.85);
-        }
-
-        /* NEW: SOFT (Large bloom, small core) */
-        .theme-soft .light {
-            border-radius: 50%;
-            filter: brightness(1.1) blur(2px);
-            box-shadow: 0 0 30px 10px currentColor, 0 0 60px 20px currentColor;
-            transform: scale(0.6);
-        }
-
-        /* Animation State: Intro Pulse */
-        @keyframes pulse {
-            0% { transform: scale(0.9); opacity: 0.8; }
-            50% { transform: scale(1.1); opacity: 1; }
-            100% { transform: scale(0.9); opacity: 0.8; }
-        }
-        
-        .light.visible {
-            transform: scale(1);
-            animation: pulse 4s infinite ease-in-out;
-        }
-
-        /* Animation State: Fade Out */
-        body.fade-out .light {
-            opacity: 0 !important;
-            transition: opacity 2s ease-out;
-        }
-
-        /* Animation State: Twinkle Mode */
-        body.twinkle-mode .light {
-            opacity: 0; 
-            transform: scale(0.8);
-            animation: none; 
-            transition: opacity 2.5s ease-in-out, transform 2.5s ease-in-out;
-        }
-
-        body.twinkle-mode .light.active {
-            opacity: 1;
-            transform: scale(1.0);
-        }
-
-        /* --- CENTRAL CONTENT STYLES --- */
         .content-wrapper {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            opacity: 0;
-            pointer-events: none; 
+            display: flex; flex-direction: column; align-items: center;
+            opacity: 0; pointer-events: none;
             transition: opacity 2.5s ease-in-out;
-            z-index: 100; 
-            width: 80%;
-            max-width: 600px;
-            max-height: 90vh; /* Ensure it fits on screen with many buttons */
+            z-index: 100;
+            width: 80%; max-width: 600px;
         }
-
-        .content-wrapper.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
+        .content-wrapper.visible { opacity: 1; pointer-events: auto; }
 
         .video-box {
-            width: 100%;
-            aspect-ratio: 16 / 9;
+            width: 100%; aspect-ratio: 16/9;
             background: #000;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 0 50px rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 20px;
-            flex-shrink: 0; 
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow: 0 0 80px rgba(0,180,255,0.07);
+            border-radius: 8px; overflow: hidden; margin-bottom: 18px;
         }
-
-        .video-box video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
+        .video-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
 
         .text-box {
-            background: rgba(20, 20, 20, 0.85); 
-            padding: 20px 30px;
-            border-radius: 20px;
+            background: rgba(5,5,10,0.9);
+            padding: 18px 28px; border-radius: 14px;
             text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px); 
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
-            width: 100%; 
-            box-sizing: border-box; 
-            display: flex;
-            flex-direction: column;
-            max-height: 50vh; /* Limit height for scrollable buttons */
+            border: 1px solid rgba(255,255,255,0.07);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 0 80px rgba(0,0,0,0.95);
+            width: 100%;
         }
-
         #appTitle {
-            margin: 0 0 10px 0;
-            font-size: 2.5rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 5px;
-            color: #fff;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
-            line-height: 1;
-            flex-shrink: 0;
+            margin: 0 0 7px 0; font-size: 2rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 4px; color: #fff;
+            text-shadow: 0 0 30px rgba(255,255,255,0.55); line-height: 1;
         }
-
         #appLink {
-            font-size: 1.2rem;
-            color: #00FFFF;
-            text-decoration: none;
-            letter-spacing: 2px;
-            font-weight: 300;
-            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
-            margin-bottom: 15px;
-            flex-shrink: 0;
+            display: block; font-size: 0.95rem; color: #00FFFF;
+            text-decoration: none; letter-spacing: 2px; font-weight: 300;
+            text-shadow: 0 0 10px rgba(0,255,255,0.55); margin-bottom: 12px;
         }
-
-        /* Navigation Buttons */
         .nav-buttons {
-            margin-top: 10px;
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            flex-wrap: wrap; /* Allow buttons to wrap to new lines */
-            overflow-y: auto; /* Scroll if too many buttons */
-            padding-right: 5px; /* Space for scrollbar */
+            margin-top: 8px; display: flex; gap: 5px;
+            justify-content: center; flex-wrap: wrap;
+            max-height: 120px; overflow-y: auto; padding: 3px 2px;
         }
-
-        /* Custom scrollbar for nav */
-        .nav-buttons::-webkit-scrollbar {
-            width: 6px;
-        }
-        .nav-buttons::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05); 
-            border-radius: 3px;
-        }
-        .nav-buttons::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2); 
-            border-radius: 3px;
-        }
-
+        .nav-buttons::-webkit-scrollbar { width: 4px; }
+        .nav-buttons::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
         .nav-btn {
             background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #888;
-            padding: 5px 10px;
-            cursor: pointer;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            transition: all 0.2s;
-            min-width: 30px;
+            border: 1px solid rgba(255,255,255,0.14);
+            color: #555; padding: 3px 8px;
+            cursor: pointer; border-radius: 4px; font-size: 0.72rem;
+            transition: all 0.18s; min-width: 26px;
         }
+        .nav-btn:hover { border-color: #fff; color: #fff; }
+        .nav-btn.active { color: #fff; border-color: #00FFFF; background: rgba(0,255,255,0.07); text-shadow: 0 0 6px #00FFFF; }
+        .nav-btn.golden { border-color: #FFD700; color: #FFD700; }
+        .nav-btn.golden:hover, .nav-btn.golden.active { color: #fff; background: rgba(255,215,0,0.1); text-shadow: 0 0 6px #FFD700; }
 
-        .nav-btn:hover {
-            border-color: #fff;
-            color: #fff;
-        }
-
-        .nav-btn.active {
-            color: white;
-            border-color: #00FFFF;
-            background: rgba(0, 255, 255, 0.1);
-            text-shadow: 0 0 5px #00FFFF;
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
-        }
-
-        /* --- GOLDEN BUTTON STYLE --- */
-        .nav-btn.golden {
-            border-color: #FFD700;
-            color: #FFD700;
-            box-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
-        }
-        
-        .nav-btn.golden:hover, .nav-btn.golden.active {
-            color: white;
-            border-color: #FFD700;
-            background: rgba(255, 215, 0, 0.2);
-            text-shadow: 0 0 5px #FFD700;
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
-        }
-
-        /* THE EASTER EGG SQUARE */
         #easterEggSquare {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            background-color: rgba(50, 50, 50, 0.5); 
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            z-index: 2000; 
-            cursor: pointer;
-            display: none; 
-            transition: background-color 0.3s;
+            position: absolute; width: 26px; height: 26px;
+            background: rgba(40,40,40,0.35);
+            border: 1px solid rgba(255,255,255,0.06);
+            z-index: 2000; cursor: pointer; display: none;
         }
-        
-        #easterEggSquare:hover {
-            background-color: rgba(255, 255, 255, 0.3);
-        }
+        #easterEggSquare:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
+<canvas id="bgCanvas"></canvas>
+<canvas id="fxCanvas"></canvas>
+<div id="easterEggSquare" title="?"></div>
 
-    <div id="lightsContainer"></div>
-    
-    <!-- The Hidden Square -->
-    <div id="easterEggSquare" title="?"></div>
-
-    <!-- Central Content Wrapper -->
-    <div class="content-wrapper" id="mainContent">
-        
-        <div class="video-box">
-             <video 
-                id="appVideo" 
-                controls 
-                muted 
-                loop 
-                playsinline>
-                <p>Your browser does not support the video tag.</p>
-            </video>
-        </div>
-
-        <div class="text-box">
-            <h1 id="appTitle">WEBSITE NAME</h1>
-            <a id="appLink" href="#" target="_blank">visit website</a>
-            
-            <!-- Navigation Container (Populated by JS) -->
-            <div class="nav-buttons" id="navButtonsContainer">
-                <!-- Buttons will be injected here -->
-            </div>
-        </div>
+<div class="content-wrapper" id="mainContent">
+    <div class="video-box">
+        <video id="appVideo" controls muted loop playsinline></video>
     </div>
+    <div class="text-box">
+        <h1 id="appTitle">WEBSITE NAME</h1>
+        <a id="appLink" href="#" target="_blank">visit website</a>
+        <div class="nav-buttons" id="navButtonsContainer"></div>
+    </div>
+</div>
 
 <script>
-    // --- CONFIGURATION ---
-    
-    // Global settings applied to all themes
-    const GLOBAL_CONFIG = {
-        sequenceDuration: 5000, 
-        stayLitDuration: 2000,
-        numberOfRows: 5,
-        lightsPerRow: 7,
-        
-        // Twinkle Settings
-        maxSimultaneousLights: 10,
-        twinkleOffMin: 4000,
-        twinkleOffMax: 12000,
-        twinkleOnDuration: 3000,
-    };
+'use strict';
+// =====================================================================
+//  LIGHT SHOW BLOOM — PHYSICS EDITION
+// =====================================================================
 
-    // --- REAL WEB GAMES LIST (53 Games) ---
-    // Video links are now dynamically generated via GitHub Release (ferw) unless specified
-    const REAL_WEB_GAMES = [
-        // KEEP Type 2 Music videoSrc as provided before
-        { name: "Type 2 Music", url: "https://tinyurl.com/type2music", videoSrc: "https://github.com/AvrageUserInYoMama/Gamebrowser/raw/main/1128.mp4", isGolden: true },
-        
-        // REMOVE explicit videoSrc from others so generator uses the release URL
-        { name: "Paper Minecraft", url: "https://scratch.mit.edu/projects/10128407/embed" },
-        { name: "Crazy Cattle 3D", url: "https://www.crazycattle.org/index.html", isGolden: true },
-        { name: "A Dark Room", url: "https://adarkroom.doublespeakgames.com" },
-        { name: "Universal Paperclips", url: "https://www.decisionproblem.com/paperclips/" },
-        { name: "Spaceplan", url: "http://jhollands.co.uk/spaceplan/", isGolden: true },
-        { name: "Candy Box 2", url: "https://candybox2.github.io/" },
-        { name: "Sandspiel", url: "https://sandspiel.club/", isGolden: true},
-        { name: "Orb Farm", url: "https://orb.farm/" },
-        { name: "Slow Roads", url: "https://slowroads.io/", isGolden: true },
-        { name: "Hextris", url: "https://hextris.io/", isGolden: true },
-        { name: "2048", url: "https://play2048.co/", isGolden: true },
-        { name: "Breaklock", url: "https://maxwellito.github.io/breaklock/" },
-        { name: "The Password Game", url: "https://neal.fun/password-game/" },
-        { name: "Infinite Craft", url: "https://neal.fun/infinite-craft/" },
-        { name: "Absurd Trolley Problems", url: "https://neal.fun/absurd-trolley-problems/" },
-        { name: "I'm not a robot", url: "https://neal.fun/not-a-robot/" },
-        { name: "Evolve", url: "https://pmotschmann.github.io/Evolve/" },
-        { name: "Subway Surfers", url: "https://subway-surfersgame.github.io/#", isGolden: true },
-        { name: "Trimps", url: "https://trimps.github.io/" },
-        { name: "Bitburner", url: "https://danielyxie.github.io/bitburner/" },
-        { name: "Shark Game", url: "https://cirri.al/sharks/" },
-        { name: "Reactor Idle", url: "https://reactoridle.com/" },
-        { name: "Antimatter Dimensions", url: "https://ivark.github.io/" },
-        { name: "Synergism", url: "https://pseudo-corp.github.io/SynergismOfficial/" },
-        { name: "Mario Cart (Scratch)", url: "https://scratch.mit.edu/projects/1163263188/fullscreen/" },
-        { name: "Wordle", url: "https://wordleunlimited.org" },
-        { name: "Progress Knight", url: "https://ihtasham42.github.io/progress-knight/" },
-        { name: "CivClicker", url: "https://civclicker.sourceforge.net/civclicker/civclicker.html" },
-        { name: "Swarm Sim", url: "https://swarmsim.github.io/" },
-        { name: "Gridland", url: "https://gridland.doublespeakgames.com/" },
-        { name: "Townscaper", url: "https://oskarstalberg.com/Townscaper/" },
-        { name: "Bad Time Simulator", url: "https://jcw87.github.io/c2-sans-fight/", isGolden: true },
-        { name: "Fluid Simulation", url: "https://paveldogreat.github.io/WebGL-Fluid-Simulation/" },
-        { name: "HexGL", url: "http://hexgl.bkcore.com/" },
-        { name: "Astray", url: "http://www.astray.xyz/" },
-        { name: "Tanuki Sunset", url: "https://squidgan.itch.io/tanuki-sunset" },
-        { name: "Sort the Court", url: "https://graebor.itch.io/sort-the-court" },
-        { name: "Friday Night Funkin", url: "https://ninja-muffin24.itch.io/funkin" },
-        { name: "Celeste Classic", url: "https://mattmakesgames.itch.io/celeste" },
-        { name: "Spelunky HTML5", url: "https://yarkinds.github.io/spelunky-html5/" },
-        { name: "Super Mario 64 JS", url: "https://sm64js.com/" },
-        { name: "Minecraft Classic", url: "https://classic.minecraft.net/", isGolden: true },
-        { name: "Cube Slam", url: "https://cubeslam.com/" },
-        { name: "Quick Draw", url: "https://quickdraw.withgoogle.com/" },
-        { name: "GeoGuessr", url: "https://www.geoguessr.com/" },
-        { name: "City Guesser", url: "https://virtualvacation.us/guess" },
-        { name: "Drive & Listen", url: "https://driveandlisten.herokuapp.com/" },
-        { name: "Windows 93", url: "http://www.windows93.net/" },
-        { name: "Hacker Typer", url: "https://hackertyper.net/" },
-        { name: "The Useless Web", url: "https://theuselessweb.com/" },
-        { name: "QWOP", url: "https://www.foddy.net/Athletics.html" },
-        { name: "Line Rider", url: "https://www.linerider.com/", isGolden: true },
-        { name: "More coming soon!", url: "null" }
-    ];
+const GLOBAL_CONFIG = {
+    sequenceDuration: 5000,
+    stayLitDuration:  2000,
+    // Physics
+    gravity:       0.04,
+    bounce:        0.55,   // energy retention on wall bounce
+    friction:      0.992,  // per-frame velocity damping
+    maxOrbs:       48,
+    spawnBurst:    8,      // orbs to spawn per intro wave
+};
 
-    const THEMES = [];
+// =====================================================================
+//  GAME LIST
+// =====================================================================
+const REAL_WEB_GAMES = [
+    { name: "Type 2 Music",   url: "https://tinyurl.com/type2music", videoSrc: "https://github.com/AvrageUserInYoMama/Gamebrowser/raw/main/1128.mp4", isGolden: true },
+    { name: "Paper Minecraft", url: "https://scratch.mit.edu/projects/10128407/embed" },
+    { name: "Crazy Cattle 3D", url: "https://www.crazycattle.org/index.html", isGolden: true },
+    { name: "A Dark Room",    url: "https://adarkroom.doublespeakgames.com" },
+    { name: "Universal Paperclips", url: "https://www.decisionproblem.com/paperclips/" },
+    { name: "Spaceplan",      url: "http://jhollands.co.uk/spaceplan/", isGolden: true },
+    { name: "Candy Box 2",    url: "https://candybox2.github.io/" },
+    { name: "Sandspiel",      url: "https://sandspiel.club/", isGolden: true },
+    { name: "Orb Farm",       url: "https://orb.farm/" },
+    { name: "Slow Roads",     url: "https://slowroads.io/", isGolden: true },
+    { name: "Hextris",        url: "https://hextris.io/", isGolden: true },
+    { name: "2048",           url: "https://play2048.co/", isGolden: true },
+    { name: "Breaklock",      url: "https://maxwellito.github.io/breaklock/" },
+    { name: "The Password Game", url: "https://neal.fun/password-game/" },
+    { name: "Infinite Craft", url: "https://neal.fun/infinite-craft/" },
+    { name: "Absurd Trolley Problems", url: "https://neal.fun/absurd-trolley-problems/" },
+    { name: "I'm not a robot", url: "https://neal.fun/not-a-robot/" },
+    { name: "Evolve",         url: "https://pmotschmann.github.io/Evolve/" },
+    { name: "Subway Surfers", url: "https://subway-surfersgame.github.io/#", isGolden: true },
+    { name: "Trimps",         url: "https://trimps.github.io/" },
+    { name: "Bitburner",      url: "https://danielyxie.github.io/bitburner/" },
+    { name: "Shark Game",     url: "https://cirri.al/sharks/" },
+    { name: "Reactor Idle",   url: "https://reactoridle.com/" },
+    { name: "Antimatter Dimensions", url: "https://ivark.github.io/" },
+    { name: "Synergism",      url: "https://pseudo-corp.github.io/SynergismOfficial/" },
+    { name: "Mario Cart (Scratch)", url: "https://scratch.mit.edu/projects/1163263188/fullscreen/" },
+    { name: "Wordle",         url: "https://wordleunlimited.org" },
+    { name: "Progress Knight", url: "https://ihtasham42.github.io/progress-knight/" },
+    { name: "CivClicker",     url: "https://civclicker.sourceforge.net/civclicker/civclicker.html" },
+    { name: "Swarm Sim",      url: "https://swarmsim.github.io/" },
+    { name: "Gridland",       url: "https://gridland.doublespeakgames.com/" },
+    { name: "Townscaper",     url: "https://oskarstalberg.com/Townscaper/" },
+    { name: "Bad Time Simulator", url: "https://jcw87.github.io/c2-sans-fight/", isGolden: true },
+    { name: "Fluid Simulation", url: "https://paveldogreat.github.io/WebGL-Fluid-Simulation/" },
+    { name: "HexGL",          url: "http://hexgl.bkcore.com/" },
+    { name: "Astray",         url: "http://www.astray.xyz/" },
+    { name: "Tanuki Sunset",  url: "https://squidgan.itch.io/tanuki-sunset" },
+    { name: "Sort the Court", url: "https://graebor.itch.io/sort-the-court" },
+    { name: "Friday Night Funkin", url: "https://ninja-muffin24.itch.io/funkin" },
+    { name: "Celeste Classic", url: "https://mattmakesgames.itch.io/celeste" },
+    { name: "Spelunky HTML5", url: "https://yarkinds.github.io/spelunky-html5/" },
+    { name: "Super Mario 64 JS", url: "https://sm64js.com/" },
+    { name: "Minecraft Classic", url: "https://classic.minecraft.net/", isGolden: true },
+    { name: "Cube Slam",      url: "https://cubeslam.com/" },
+    { name: "Quick Draw",     url: "https://quickdraw.withgoogle.com/" },
+    { name: "GeoGuessr",      url: "https://www.geoguessr.com/" },
+    { name: "City Guesser",   url: "https://virtualvacation.us/guess" },
+    { name: "Drive & Listen", url: "https://driveandlisten.herokuapp.com/" },
+    { name: "Windows 93",     url: "http://www.windows93.net/" },
+    { name: "Hacker Typer",   url: "https://hackertyper.net/" },
+    { name: "The Useless Web", url: "https://theuselessweb.com/" },
+    { name: "QWOP",           url: "https://www.foddy.net/Athletics.html" },
+    { name: "Line Rider",     url: "https://www.linerider.com/", isGolden: true },
+    // ── 30 NEW OBSCURE GEMS ──────────────────────────────────────────
+    { name: "Krunker.io",     url: "https://krunker.io/", isGolden: true },
+    { name: "Dragonsweeper",  url: "https://daniel-benmergui.itch.io/dragonsweeper", isGolden: true },
+    { name: "Little Alchemy 2", url: "https://littlealchemy2.com/", isGolden: true },
+    { name: "Absurdle",       url: "https://qntm.org/files/absurdle/absurdle.html" },
+    { name: "Tetr.io",        url: "https://tetr.io/", isGolden: true },
+    { name: "Dice Wars",      url: "https://www.gamedesign.jp/sp/dice-wars/" },
+    { name: "Dweller's Empty Path", url: "https://temmie.itch.io/dwellers-empty-path" },
+    { name: "Six Cats Under", url: "https://teambean.itch.io/six-cats-under" },
+    { name: "Tiny Kingdom",   url: "https://neltile.itch.io/tiny-kingdom" },
+    { name: "Packing",        url: "https://owokamii.itch.io/packing" },
+    { name: "Dungeon Sweeper", url: "https://setamo.itch.io/dungeon-sweeper" },
+    { name: "Book Hunter",    url: "https://watabou.itch.io/book-hunter", isGolden: true },
+    { name: "Softspores",     url: "https://kitfoxgames.itch.io/softspores" },
+    { name: "Retromine Classic", url: "https://ccdg.itch.io/retromine" },
+    { name: "Basilica",       url: "https://mattstark.itch.io/basilica" },
+    { name: "Landflip",       url: "https://mattstark.itch.io/landflip" },
+    { name: "I Wish I Were the Moon", url: "https://managore.itch.io/i-wish-i-were-the-moon" },
+    { name: "Candy Box!",     url: "https://candybox.net/" },
+    { name: "Out of Ctrl",    url: "https://miknugget.itch.io/out-of-ctrl" },
+    { name: "Conversations w/ Cannibals", url: "https://loomnorth.itch.io/conversations-with-cannibals" },
+    { name: "Foursight",      url: "https://ericosg.itch.io/foursight", isGolden: true },
+    { name: "SHRUBNAUT",      url: "https://gleeson.itch.io/shrubnaut" },
+    { name: "UFO Swamp Odyssey", url: "https://paranoidcactus.itch.io/ufo-swamp-odyssey" },
+    { name: "Opossum Country", url: "https://benjelter.itch.io/opossum-country" },
+    { name: "Knight Night",   url: "https://weenerschnitzel.itch.io/knight-night" },
+    { name: "Wormax.io",      url: "https://wormax.io/" },
+    { name: "Croncycle",      url: "https://hempuli.itch.io/cronycle" },
+    { name: "Domino Grove",   url: "https://ezraszanton.itch.io/domino-grove" },
+    { name: "FUZ",            url: "https://jusiv.itch.io/fuz" },
+    { name: "More coming soon!", url: "null" },
+];
 
-    // --- POPULATE THEMES FROM GAME LIST ---
-    (function initThemes() {
-        const styles = ["theme-pop", "theme-cyber", "theme-sunset", "theme-sharp", "theme-soft"];
-        const anims = ["topDown", "bottomUp", "randomNoise"];
-        
-        // Helper to get random item
-        const getRand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+// =====================================================================
+//  THEME GENERATION
+// =====================================================================
+const THEMES = [];
+const ANIM_TYPES = ['burst', 'rain', 'spiral', 'firework', 'vortex', 'wave'];
+const BG_STYLES  = ['cyber', 'aurora', 'plasma', 'neon', 'void', 'nebula'];
 
-        REAL_WEB_GAMES.forEach((game, index) => {
-            
-            // Format link text: "Game Name" -> "gamename.com"
-            const cleanName = game.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-            const webLinkText = `${cleanName}.com`;
-
-            const randStyle = getRand(styles);
-            const randAnim = getRand(anims);
-            
-            // LOGIC FOR VIDEO LINK:
-            // If explicit videoSrc is provided (like for Type 2 Music), use it.
-            // Otherwise, construct it using the pattern: releases/download/ferw/{Name.With.Dots}.mkv
-            let videoUrl;
-            if (game.videoSrc) {
-                videoUrl = game.videoSrc;
-            } else {
-                // CHANGED: Replace spaces with dots (e.g. "Paper Minecraft" -> "Paper.Minecraft.mkv")
-                const fileName = game.name.replace(/\s+/g, '.');
-                // Using the specific release tag 'ferw'
-                videoUrl = `https://github.com/AvrageUserInYoMama/Gamebrowser/releases/download/ferw/${fileName}.mkv`;
-            }
-            
-            // Generate a random color palette of 6 colors
-            const palette = [];
-            for(let c=0; c<8; c++) {
-                const hue = Math.floor(Math.random() * 360);
-                const sat = 80 + Math.floor(Math.random() * 20); // 80-100%
-                const light = 50 + Math.floor(Math.random() * 40); // 50-90%
-                palette.push(`hsl(${hue}, ${sat}%, ${light}%)`);
-            }
-
-            THEMES.push({
-                name: game.name,
-                btnLabel: `${index + 1}`, // Page 1, 2, 3...
-                className: randStyle,
-                animationType: randAnim,
-                lightSize: Math.floor(Math.random() * 40 + 70) + 'px', 
-                isGolden: game.isGolden || false, // Pass golden status
-                content: {
-                    title: game.name.toUpperCase(),
-                    linkText: webLinkText,
-                    linkUrl: game.url, // Actual real URL
-                    videoSrc: videoUrl // Constructed or explicit URL
-                },
-                colors: palette
-            });
+(function initThemes() {
+    const rnd = arr => arr[Math.floor(Math.random() * arr.length)];
+    REAL_WEB_GAMES.forEach((game, i) => {
+        const cleanName = game.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        let videoUrl = game.videoSrc || `https://github.com/AvrageUserInYoMama/Gamebrowser/releases/download/ferw/${game.name.replace(/\s+/g,'.')}.mkv`;
+        const palette = Array.from({length: 8}, () => {
+            const h = Math.floor(Math.random() * 360);
+            const s = 70 + Math.floor(Math.random() * 30);
+            const l = 50 + Math.floor(Math.random() * 35);
+            return { h, s, l, str: `hsl(${h},${s}%,${l}%)` };
         });
-    })();
+        THEMES.push({
+            name: game.name,
+            btnLabel: `${i + 1}`,
+            isGolden: game.isGolden || false,
+            animType: rnd(ANIM_TYPES),
+            bgStyle:  rnd(BG_STYLES),
+            palette,
+            content: {
+                title:   game.name.toUpperCase(),
+                linkText:`${cleanName}.com`,
+                linkUrl: game.url,
+                videoSrc: videoUrl
+            }
+        });
+    });
+})();
 
-    // --- STATE MANAGEMENT ---
-    let currentIntervalId = null;
-    let twinkleTimeouts = [];
-    let activeLightsCount = 0;
-    
-    // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-        setupNavButtons();
-        setupEasterEggListener();
+// =====================================================================
+//  CANVAS SETUP
+// =====================================================================
+const bgCanvas = document.getElementById('bgCanvas');
+const bgCtx    = bgCanvas.getContext('2d');
+const fxCanvas = document.getElementById('fxCanvas');
+const fxCtx    = fxCanvas.getContext('2d');
 
-        // Pick a random start theme index
-        const randomStart = Math.floor(Math.random() * THEMES.length);
-        startLightShow(randomStart, false);
+let W = 0, H = 0;
+function resize() {
+    W = bgCanvas.width  = fxCanvas.width  = window.innerWidth;
+    H = bgCanvas.height = fxCanvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// =====================================================================
+//  PHYSICS ORBS
+// =====================================================================
+
+// Shape types
+const SHAPES = ['circle', 'ring', 'square', 'diamond', 'triangle', 'star', 'blob', 'cross'];
+
+function randBetween(a, b) { return a + Math.random() * (b - a); }
+function randInt(a, b)     { return Math.floor(randBetween(a, b + 1)); }
+
+function makeOrb(theme, spawnX, spawnY, spawnMode) {
+    const p   = theme.palette[randInt(0, theme.palette.length - 1)];
+    const r   = randBetween(8, 55);   // radius — big range!
+    const mass = r * r * 0.01;        // heavier = bigger
+
+    let vx = 0, vy = 0;
+    switch (spawnMode) {
+        case 'burst':
+            const angle = Math.random() * Math.PI * 2;
+            const speed = randBetween(2, 12);
+            vx = Math.cos(angle) * speed;
+            vy = Math.sin(angle) * speed - 4;
+            break;
+        case 'rain':
+            vx = randBetween(-1.5, 1.5);
+            vy = randBetween(1, 5);
+            spawnX = spawnX ?? Math.random() * W;
+            spawnY = spawnY ?? -r;
+            break;
+        case 'firework':
+            const a2 = randBetween(-Math.PI, 0); // upward hemisphere
+            const sp2 = randBetween(4, 16);
+            vx = Math.cos(a2) * sp2;
+            vy = Math.sin(a2) * sp2;
+            break;
+        case 'spiral':
+            const t = Math.random() * Math.PI * 4;
+            vx = Math.cos(t) * randBetween(1, 8);
+            vy = Math.sin(t) * randBetween(1, 8) - 2;
+            break;
+        case 'vortex':
+            const cx = W / 2, cy = H / 2;
+            const dx = (spawnX ?? cx) - cx, dy = (spawnY ?? cy) - cy;
+            const dist = Math.hypot(dx, dy) || 1;
+            vx = (-dy / dist) * randBetween(3, 10);
+            vy = ( dx / dist) * randBetween(3, 10);
+            break;
+        case 'wave':
+            vx = randBetween(2, 8) * (Math.random() < 0.5 ? 1 : -1);
+            vy = randBetween(-4, -1);
+            break;
+        default:
+            vx = randBetween(-5, 5);
+            vy = randBetween(-8, -2);
+    }
+
+    // Randomise every visual property independently per orb
+    const shape        = SHAPES[randInt(0, SHAPES.length - 1)];
+    const rotation     = Math.random() * Math.PI * 2;
+    const spinSpeed    = randBetween(-0.06, 0.06);
+    const glowLayers   = randInt(1, 4);
+    const glowStrength = randBetween(0.3, 1.0);
+    const alpha        = randBetween(0.55, 1.0);
+    const scaleX       = randBetween(0.5, 1.8);   // ellipse / squash
+    const scaleY       = randBetween(0.5, 1.8);
+    const blobPoints   = Array.from({length: randInt(4, 8)}, () => randBetween(0.5, 1.4));
+    const starPoints   = randInt(4, 8);
+    const trail        = [];
+    const maxTrail     = randInt(0, 18);
+    const trailAlpha   = randBetween(0.05, 0.35);
+    const bounceFactor = randBetween(0.3, 0.85);   // per-orb bounce
+    const gravity      = randBetween(0.01, 0.12);   // per-orb gravity
+    const drag         = randBetween(0.985, 0.999); // per-orb air drag
+    const flickerSpeed = randBetween(0.5, 4);
+    const flickerAmp   = randBetween(0, 0.4);
+    const birthTime    = performance.now();
+    const lifespan     = randBetween(4000, 18000);  // ms
+
+    return {
+        x: spawnX ?? randBetween(r, W - r),
+        y: spawnY ?? randBetween(H * 0.1, H * 0.6),
+        vx, vy, r, mass,
+        shape, rotation, spinSpeed,
+        scaleX, scaleY, blobPoints, starPoints,
+        glowLayers, glowStrength, alpha, trailAlpha,
+        trail, maxTrail, bounceFactor, gravity, drag,
+        flickerSpeed, flickerAmp,
+        p, birthTime, lifespan,
+        dead: false,
+    };
+}
+
+// =====================================================================
+//  DRAW ONE ORB
+// =====================================================================
+function drawOrb(ctx, o, now) {
+    const age    = now - o.birthTime;
+    const life01 = Math.min(age / o.lifespan, 1);
+    // Fade in first 300ms, fade out last 800ms
+    const fadeIn  = Math.min(age / 300, 1);
+    const fadeOut = life01 > 0.8 ? 1 - (life01 - 0.8) / 0.2 : 1;
+    const flicker = 1 - o.flickerAmp * (0.5 + 0.5 * Math.sin(now * 0.001 * o.flickerSpeed));
+    const alpha   = o.alpha * fadeIn * fadeOut * flicker;
+    if (alpha <= 0.01) return;
+
+    // Trail
+    if (o.trail.length > 1) {
+        for (let i = 1; i < o.trail.length; i++) {
+            const t = o.trail[i], tp = o.trail[i - 1];
+            const ta = (i / o.trail.length) * o.trailAlpha * alpha;
+            ctx.beginPath();
+            ctx.strokeStyle = `hsla(${o.p.h},${o.p.s}%,${o.p.l}%,${ta})`;
+            ctx.lineWidth = (o.r * 0.4) * (i / o.trail.length);
+            ctx.lineCap = 'round';
+            ctx.moveTo(tp.x, tp.y);
+            ctx.lineTo(t.x, t.y);
+            ctx.stroke();
+        }
+    }
+
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    ctx.rotate(o.rotation);
+    ctx.scale(o.scaleX, o.scaleY);
+    ctx.globalAlpha = alpha;
+
+    // Glow layers (drawn before shape)
+    for (let g = o.glowLayers; g >= 1; g--) {
+        const gr = o.r * (1 + g * 1.2);
+        const ga = (o.glowStrength / o.glowLayers) * (1 / g) * alpha;
+        const grd = ctx.createRadialGradient(0, 0, 0, 0, 0, gr);
+        grd.addColorStop(0, `hsla(${o.p.h},${o.p.s}%,${o.p.l}%,${ga})`);
+        grd.addColorStop(1, `hsla(${o.p.h},${o.p.s}%,${o.p.l}%,0)`);
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(0, 0, gr, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Core shape
+    ctx.fillStyle   = `hsla(${o.p.h},${o.p.s}%,${o.p.l}%,${alpha})`;
+    ctx.strokeStyle = `hsla(${o.p.h},${o.p.s + 10}%,${Math.min(o.p.l + 25, 100)}%,${alpha})`;
+    ctx.lineWidth   = Math.max(1, o.r * 0.08);
+    ctx.shadowColor = o.p.str;
+    ctx.shadowBlur  = o.r * 1.5 * o.glowStrength;
+
+    switch (o.shape) {
+        case 'circle':
+            ctx.beginPath(); ctx.arc(0, 0, o.r, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke(); break;
+
+        case 'ring':
+            ctx.beginPath(); ctx.arc(0, 0, o.r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.lineWidth = o.r * 0.25;
+            ctx.beginPath(); ctx.arc(0, 0, o.r * 0.65, 0, Math.PI * 2);
+            ctx.stroke(); break;
+
+        case 'square': {
+            const s = o.r * 1.4;
+            ctx.beginPath(); ctx.rect(-s/2, -s/2, s, s);
+            ctx.fill(); ctx.stroke(); break; }
+
+        case 'diamond': {
+            const d = o.r * 1.3;
+            ctx.beginPath();
+            ctx.moveTo(0, -d); ctx.lineTo(d * 0.7, 0);
+            ctx.lineTo(0, d);  ctx.lineTo(-d * 0.7, 0);
+            ctx.closePath(); ctx.fill(); ctx.stroke(); break; }
+
+        case 'triangle': {
+            const t2 = o.r * 1.3;
+            ctx.beginPath();
+            ctx.moveTo(0, -t2);
+            ctx.lineTo(t2 * 0.866, t2 * 0.5);
+            ctx.lineTo(-t2 * 0.866, t2 * 0.5);
+            ctx.closePath(); ctx.fill(); ctx.stroke(); break; }
+
+        case 'star': {
+            const n = o.starPoints, outer = o.r, inner = o.r * 0.45;
+            ctx.beginPath();
+            for (let i = 0; i < n * 2; i++) {
+                const a = (i * Math.PI) / n - Math.PI / 2;
+                const dist2 = i % 2 === 0 ? outer : inner;
+                if (i === 0) ctx.moveTo(Math.cos(a) * dist2, Math.sin(a) * dist2);
+                else         ctx.lineTo(Math.cos(a) * dist2, Math.sin(a) * dist2);
+            }
+            ctx.closePath(); ctx.fill(); ctx.stroke(); break; }
+
+        case 'blob': {
+            const pts = o.blobPoints.length;
+            ctx.beginPath();
+            for (let i = 0; i <= pts; i++) {
+                const a = (i / pts) * Math.PI * 2;
+                const rad = o.r * o.blobPoints[i % pts];
+                const x = Math.cos(a) * rad, y = Math.sin(a) * rad;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.closePath(); ctx.fill(); ctx.stroke(); break; }
+
+        case 'cross': {
+            const arm = o.r * 1.1, thick = o.r * 0.35;
+            ctx.beginPath();
+            ctx.rect(-arm, -thick, arm * 2, thick * 2);
+            ctx.rect(-thick, -arm, thick * 2, arm * 2);
+            ctx.fill(); ctx.stroke(); break; }
+    }
+
+    ctx.restore();
+}
+
+// =====================================================================
+//  BACKGROUND ENGINE
+// =====================================================================
+let bgTime = 0;
+let bgStars = [];
+let bgStyle = 'cyber';
+let bgPalette = [];
+
+function initStars() {
+    bgStars = Array.from({length: 200}, () => ({
+        x: Math.random() * W, y: Math.random() * H,
+        r: randBetween(0.2, 1.6),
+        tw: randBetween(0.003, 0.02),
+        off: Math.random() * Math.PI * 2
+    }));
+}
+
+function drawBackground() {
+    const c = bgCtx, w = W, h = H, t = bgTime;
+    c.clearRect(0, 0, w, h);
+
+    // ── background fills ──────────────────────────────────────────────
+    if (bgStyle === 'aurora') {
+        const g = c.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, '#000608'); g.addColorStop(1, '#000204');
+        c.fillStyle = g; c.fillRect(0, 0, w, h);
+        for (let b = 0; b < 4; b++) {
+            const yb = h * (0.15 + b * 0.18);
+            const hue = 130 + b * 35 + Math.sin(t * 0.18 + b) * 25;
+            c.save(); c.globalAlpha = 0.09 + Math.sin(t * 0.25 + b * 1.3) * 0.04;
+            for (let x = 0; x < w; x += 2) {
+                const y = yb + Math.sin(x * 0.007 + t * 0.35 + b * 2.1) * 90
+                              + Math.sin(x * 0.002 + t * 0.18) * 45;
+                const gr = c.createLinearGradient(x, y - 90, x, y + 90);
+                gr.addColorStop(0, 'transparent');
+                gr.addColorStop(0.5, `hsla(${hue},90%,62%,1)`);
+                gr.addColorStop(1, 'transparent');
+                c.fillStyle = gr; c.fillRect(x, y - 90, 2, 180);
+            }
+            c.restore();
+        }
+    } else if (bgStyle === 'plasma') {
+        c.fillStyle = '#040005'; c.fillRect(0, 0, w, h);
+        const id = c.createImageData(w, h);
+        const step = 5;
+        for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step) {
+            const nx = x / w, ny = y / h;
+            const v = Math.sin(nx * 9 + t * 0.9) + Math.sin(ny * 7 + t * 0.7)
+                    + Math.sin((nx + ny) * 6 + t) + Math.sin(Math.hypot(nx - 0.5, ny - 0.5) * 11 - t * 1.3);
+            const hue = ((v * 55 + t * 35) % 360 + 360) % 360;
+            const [r, g, b] = hslToRgb(hue / 360, 0.95, 0.3);
+            for (let dy = 0; dy < step; dy++) for (let dx = 0; dx < step; dx++) {
+                const i = ((y + dy) * w + (x + dx)) * 4;
+                id.data[i] = r; id.data[i+1] = g; id.data[i+2] = b; id.data[i+3] = 22;
+            }
+        }
+        c.putImageData(id, 0, 0);
+    } else if (bgStyle === 'neon') {
+        c.fillStyle = '#000009'; c.fillRect(0, 0, w, h);
+        const vy = h * 0.44, col = bgPalette[0]?.str || '#00ffff';
+        c.save(); c.lineWidth = 0.6;
+        for (let i = 0; i < 22; i++) {
+            const yFrac = i / 22, y = vy + (h - vy) * yFrac;
+            c.globalAlpha = 0.04 + yFrac * 0.22;
+            c.strokeStyle = col; c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke();
+        }
+        c.globalAlpha = 0.1;
+        const off = (t * 22) % (w / 18);
+        for (let i = -10; i <= 10; i++) {
+            const xb = w / 2 + i * (w / 18) - off;
+            c.beginPath(); c.moveTo(w / 2, vy); c.lineTo(xb, h); c.stroke();
+        }
+        c.restore();
+        const hg = c.createLinearGradient(0, vy - 30, 0, vy + 30);
+        hg.addColorStop(0, 'transparent');
+        hg.addColorStop(0.5, `hsla(${bgPalette[0]?.h ?? 180},90%,60%,0.12)`);
+        hg.addColorStop(1, 'transparent');
+        c.fillStyle = hg; c.fillRect(0, vy - 30, w, 60);
+    } else if (bgStyle === 'nebula') {
+        c.fillStyle = '#02000a'; c.fillRect(0, 0, w, h);
+        // Nebula clouds
+        for (let n = 0; n < 5; n++) {
+            const nx = w * (0.1 + n * 0.2 + Math.sin(t * 0.05 + n) * 0.05);
+            const ny = h * (0.2 + n * 0.14 + Math.cos(t * 0.04 + n) * 0.04);
+            const nr = 80 + n * 40;
+            const nh = (bgPalette[n % bgPalette.length]?.h ?? 280);
+            const gr = c.createRadialGradient(nx, ny, 0, nx, ny, nr);
+            gr.addColorStop(0, `hsla(${nh},80%,40%,0.08)`);
+            gr.addColorStop(1, 'transparent');
+            c.fillStyle = gr; c.fillRect(nx - nr, ny - nr, nr * 2, nr * 2);
+        }
+    } else if (bgStyle === 'void') {
+        c.fillStyle = '#000000'; c.fillRect(0, 0, w, h);
+        // Void rift
+        const grd = c.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.min(w, h) * 0.5);
+        grd.addColorStop(0, `hsla(${bgPalette[0]?.h ?? 240},60%,10%,0.15)`);
+        grd.addColorStop(1, 'transparent');
+        c.fillStyle = grd; c.fillRect(0, 0, w, h);
+    } else { // cyber
+        c.fillStyle = '#05050e'; c.fillRect(0, 0, w, h);
+        c.save(); c.globalAlpha = 0.035; c.fillStyle = '#fff';
+        const so = (t * 45) % 4;
+        for (let y = so; y < h; y += 4) c.fillRect(0, y, w, 1);
+        c.restore();
+    }
+
+    // Stars (always)
+    bgStars.forEach(s => {
+        const a = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * s.tw * 60 + s.off));
+        c.save(); c.globalAlpha = a * 0.5; c.fillStyle = '#fff';
+        c.beginPath(); c.arc(s.x, s.y, s.r, 0, Math.PI * 2); c.fill(); c.restore();
     });
 
-    function setupNavButtons() {
-        const navContainer = document.getElementById('navButtonsContainer');
-        navContainer.innerHTML = ''; // Clear existing
+    bgTime += 0.016;
+}
 
-        THEMES.forEach((theme, index) => {
-            const btn = document.createElement('button');
-            btn.className = 'nav-btn';
-            
-            // Apply Golden Class if applicable
-            if (theme.isGolden) {
-                btn.classList.add('golden');
-            }
+function hslToRgb(h, s, l) {
+    const q = l < 0.5 ? l*(1+s) : l+s-l*s, p = 2*l-q;
+    const hue2rgb = (p,q,t) => { t=(t+1)%1; if(t<1/6)return p+(q-p)*6*t; if(t<0.5)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+    return [hue2rgb(p,q,h+1/3),hue2rgb(p,q,h),hue2rgb(p,q,h-1/3)].map(v=>Math.round(v*255));
+}
 
-            btn.textContent = theme.btnLabel;
-            btn.title = theme.name; // Tooltip shows full game name
-            btn.onclick = () => switchTheme(index);
-            navContainer.appendChild(btn);
-        });
+// =====================================================================
+//  ORB POOL & PHYSICS LOOP
+// =====================================================================
+let orbs = [];
+let currentTheme = null;
+let physicsRunning = false;
+let contentShown = false;
+let introTimeout = null;
+
+function spawnWave(theme, mode, cx, cy) {
+    const count = Math.min(GLOBAL_CONFIG.spawnBurst, GLOBAL_CONFIG.maxOrbs - orbs.length);
+    for (let i = 0; i < count; i++) {
+        orbs.push(makeOrb(theme, cx, cy, mode));
     }
+}
 
-    // Handle Content Updates based on Theme
-    function setupContent(theme) {
-        document.getElementById('appTitle').textContent = theme.content.title;
-        const link = document.getElementById('appLink');
-        link.textContent = theme.content.linkText;
-        link.href = theme.content.linkUrl;
-        
-        // Update video src directly
-        const vid = document.getElementById('appVideo');
-        vid.src = theme.content.videoSrc;
-        vid.load(); // Reload the video element
-    }
-
-    // --- EASTER EGG LOGIC ---
-    function setupEasterEggListener() {
-        const egg = document.getElementById('easterEggSquare');
-        egg.addEventListener('click', () => {
-            alert("Congratulations! You found the hidden secret!");
-            
-            // Switch to Big Buck Bunny (Direct MP4)
-            const vid = document.getElementById('appVideo');
-            vid.src = "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"; 
-            vid.load();
-            vid.play();
-            
-            document.getElementById('appTitle').textContent = "SECRET FOUND";
-            document.getElementById('appLink').textContent = "big.buck.bunny";
-            
-            egg.style.display = 'none'; // Hide after finding
-        });
-    }
-
-    function rollForEasterEgg() {
-        const egg = document.getElementById('easterEggSquare');
-        egg.style.display = 'none'; // Reset to hidden
-        
-        // 1 in 1000 chance
-        const chance = Math.random();
-        
-        if (chance < 0.001) { 
-            // SUCCESS!
-            const randomTop = Math.floor(Math.random() * 90) + 5; // 5% to 95%
-            const randomLeft = Math.floor(Math.random() * 90) + 5;
-            
-            egg.style.top = randomTop + '%';
-            egg.style.left = randomLeft + '%';
-            egg.style.display = 'block';
-            console.log("Easter Egg Spawned at", randomTop, randomLeft);
-        }
-    }
-
-    // Exposed to global scope for buttons
-    window.switchTheme = function(themeIndex) {
-        // Reset everything
-        stopAllAnimations();
-        
-        // Hide content temporarily to focus on the new light show
-        const content = document.getElementById('mainContent');
-        content.classList.remove('visible');
-        
-        // Stop video playback
-        const vid = document.getElementById('appVideo');
-        vid.pause();
-
-        // Brief delay before starting new show
+function spawnAll(theme, mode) {
+    orbs = [];
+    const total = GLOBAL_CONFIG.maxOrbs;
+    const waves = 6;
+    for (let w = 0; w < waves; w++) {
+        const delay = w * (GLOBAL_CONFIG.sequenceDuration / waves);
         setTimeout(() => {
-            startLightShow(themeIndex, true);
-        }, 500);
-    };
-
-    function stopAllAnimations() {
-        if (currentIntervalId) clearInterval(currentIntervalId);
-        twinkleTimeouts.forEach(t => clearTimeout(t));
-        twinkleTimeouts = [];
-        activeLightsCount = 0;
-        
-        document.body.className = ''; // Remove all theme/mode classes
-        document.getElementById('lightsContainer').innerHTML = ''; // Clear DOM
-    }
-
-    function startLightShow(themeIndex, skipIntro = false) {
-        const theme = THEMES[themeIndex];
-        
-        // Update Content for this page
-        setupContent(theme);
-        
-        // Try to spawn Easter Egg
-        rollForEasterEgg();
-
-        const container = document.getElementById('lightsContainer');
-        
-        // Apply Theme Class to Body
-        document.body.classList.add(theme.className);
-        
-        // Update Nav Button Active State
-        const btns = document.querySelectorAll('.nav-btn');
-        btns.forEach((btn, idx) => {
-            if(idx === themeIndex) btn.classList.add('active');
-            else btn.classList.remove('active');
-        });
-
-        // 1. GENERATE GRID (But keep lights invisible first)
-        const rows = [];
-        let allLightsFlat = []; 
-        let availableColors = [];
-
-        function getColor(currentRowColors) {
-            if (availableColors.length === 0) availableColors = [...theme.colors];
-            
-            const candidates = availableColors.filter(c => !currentRowColors.includes(c));
-            let selection = candidates.length > 0 
-                ? candidates[Math.floor(Math.random() * candidates.length)]
-                : availableColors[Math.floor(Math.random() * availableColors.length)];
-            
-            const idx = availableColors.indexOf(selection);
-            if (idx > -1) availableColors.splice(idx, 1);
-            
-            return selection;
-        }
-
-        for (let r = 0; r < GLOBAL_CONFIG.numberOfRows; r++) {
-            const row = document.createElement('div');
-            row.classList.add('row');
-            const rowColors = [];
-
-            for (let i = 0; i < GLOBAL_CONFIG.lightsPerRow; i++) {
-                const light = document.createElement('div');
-                light.classList.add('light');
-                light.style.width = theme.lightSize;
-                light.style.height = theme.lightSize;
-                
-                const color = getColor(rowColors);
-                rowColors.push(color);
-                light.style.color = color;
-                light.style.backgroundColor = color;
-                
-                row.appendChild(light);
-                allLightsFlat.push(light);
+            const cx = mode === 'firework' ? randBetween(W * 0.2, W * 0.8) : W / 2;
+            const cy = mode === 'firework' ? randBetween(H * 0.15, H * 0.55) : H * 0.6;
+            const perWave = Math.ceil(total / waves);
+            for (let i = 0; i < perWave && orbs.length < total; i++) {
+                orbs.push(makeOrb(theme, cx, cy, mode));
             }
-            container.appendChild(row);
-            rows.push(row);
+        }, delay);
+    }
+}
+
+function updateOrbs(now) {
+    for (let i = orbs.length - 1; i >= 0; i--) {
+        const o = orbs[i];
+        const age = now - o.birthTime;
+        if (age >= o.lifespan) { orbs.splice(i, 1); continue; }
+
+        // Trail
+        if (o.maxTrail > 0) {
+            o.trail.push({ x: o.x, y: o.y });
+            if (o.trail.length > o.maxTrail) o.trail.shift();
         }
 
-        // 2. CHECK: SKIP INTRO OR RUN ANIMATION
-        if (skipIntro) {
-            // IMMEDIATE MODE
-            startTwinkleMode();
-            
-            const content = document.getElementById('mainContent');
-            content.classList.add('visible');
-            
-            const vid = document.getElementById('appVideo');
-            vid.play().catch(e => console.log("Autoplay blocked:", e));
-            
-            return; // Exit function, don't run animation logic below
-        }
+        // Physics
+        o.vy += o.gravity;
+        o.vx *= o.drag;
+        o.vy *= o.drag;
+        o.x  += o.vx;
+        o.y  += o.vy;
+        o.rotation += o.spinSpeed;
 
-        // 3. RUN ANIMATION BASED ON THEME TYPE (Only if skipIntro is false)
-        
-        // Callback function to run when animation finishes
-        const onAnimationComplete = () => {
-            twinkleTimeouts.push(setTimeout(() => {
-                document.body.classList.add('fade-out');
-                
-                twinkleTimeouts.push(setTimeout(() => {
-                     // Clean up visible class from manual animation
-                     document.querySelectorAll('.light').forEach(l => l.classList.remove('visible'));
-                     document.body.classList.remove('fade-out'); 
-                     
-                     startTwinkleMode(); 
-                     
-                     // Show Content
-                     const content = document.getElementById('mainContent');
-                     content.classList.add('visible');
-                     
-                     // Play Video (Autoplay requires muted usually)
-                     const vid = document.getElementById('appVideo');
-                     vid.play().catch(e => console.log("Autoplay blocked:", e));
-
-                }, 2000)); 
-
-            }, GLOBAL_CONFIG.stayLitDuration));
-        };
-
-        // --- ANIMATION STRATEGIES ---
-
-        if (theme.animationType === 'topDown') {
-            const intervalTime = GLOBAL_CONFIG.sequenceDuration / rows.length;
-            let currentRow = 0;
-
-            currentIntervalId = setInterval(() => {
-                if (currentRow < rows.length) {
-                    const lightsInRow = rows[currentRow].querySelectorAll('.light');
-                    lightsInRow.forEach(l => l.classList.add('visible'));
-                    currentRow++;
-                } else {
-                    clearInterval(currentIntervalId);
-                    onAnimationComplete();
-                }
-            }, intervalTime);
-
-        } else if (theme.animationType === 'bottomUp') {
-            const intervalTime = GLOBAL_CONFIG.sequenceDuration / rows.length;
-            let currentRow = rows.length - 1; 
-
-            currentIntervalId = setInterval(() => {
-                if (currentRow >= 0) {
-                    const lightsInRow = rows[currentRow].querySelectorAll('.light');
-                    lightsInRow.forEach(l => l.classList.add('visible'));
-                    currentRow--;
-                } else {
-                    clearInterval(currentIntervalId);
-                    onAnimationComplete();
-                }
-            }, intervalTime);
-
-        } else if (theme.animationType === 'randomNoise') {
-            // Shuffle array of all lights
-            for (let i = allLightsFlat.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [allLightsFlat[i], allLightsFlat[j]] = [allLightsFlat[j], allLightsFlat[i]];
-            }
-
-            const intervalTime = GLOBAL_CONFIG.sequenceDuration / allLightsFlat.length;
-            let currentLightIdx = 0;
-
-            currentIntervalId = setInterval(() => {
-                if (currentLightIdx < allLightsFlat.length) {
-                    allLightsFlat[currentLightIdx].classList.add('visible');
-                    currentLightIdx++;
-                } else {
-                    clearInterval(currentIntervalId);
-                    onAnimationComplete();
-                }
-            }, intervalTime);
-        }
+        // Wall bounce
+        const rW = o.r * Math.max(o.scaleX, o.scaleY);
+        if (o.x - rW < 0)      { o.x = rW;     o.vx = Math.abs(o.vx) * o.bounceFactor; }
+        if (o.x + rW > W)      { o.x = W - rW; o.vx = -Math.abs(o.vx) * o.bounceFactor; }
+        if (o.y + rW > H)      { o.y = H - rW; o.vy = -Math.abs(o.vy) * o.bounceFactor;
+                                  o.vx *= 0.92; } // floor friction
+        if (o.y - rW < 0)      { o.y = rW;     o.vy = Math.abs(o.vy) * o.bounceFactor; }
     }
 
-    function startTwinkleMode() {
-        document.body.classList.add('twinkle-mode');
-        const allLights = document.querySelectorAll('.light');
-        
-        allLights.forEach(light => {
-            const startDelay = Math.random() * GLOBAL_CONFIG.twinkleOffMax;
-            twinkleTimeouts.push(setTimeout(() => {
-                scheduleBlink(light);
-            }, startDelay));
-        });
+    // Keep spawning in twinkle phase if low
+    if (contentShown && orbs.length < 20 && currentTheme) {
+        const mode = currentTheme.animType;
+        const cx = mode === 'firework' ? randBetween(W*0.2, W*0.8) : randBetween(W*0.2, W*0.8);
+        const cy = mode === 'firework' ? randBetween(H*0.1, H*0.5) : H * 0.8;
+        for (let k = 0; k < 3; k++) orbs.push(makeOrb(currentTheme, cx, cy, mode));
+    }
+}
+
+// =====================================================================
+//  MAIN RENDER LOOP
+// =====================================================================
+function loop(now) {
+    drawBackground();
+    updateOrbs(now);
+    fxCtx.clearRect(0, 0, W, H);
+    for (const o of orbs) drawOrb(fxCtx, o, now);
+    requestAnimationFrame(loop);
+}
+
+// =====================================================================
+//  SHOW MANAGEMENT
+// =====================================================================
+let switchTimeout = null;
+
+function startLightShow(themeIndex, skipIntro = false) {
+    clearTimeout(introTimeout);
+    clearTimeout(switchTimeout);
+    contentShown = false;
+    orbs = [];
+
+    const theme = currentTheme = THEMES[themeIndex];
+    bgStyle   = theme.bgStyle;
+    bgPalette = theme.palette;
+
+    // Content
+    document.getElementById('appTitle').textContent = theme.content.title;
+    const link = document.getElementById('appLink');
+    link.textContent = theme.content.linkText;
+    link.href = theme.content.linkUrl;
+    const vid = document.getElementById('appVideo');
+    vid.src = theme.content.videoSrc; vid.load();
+
+    // Nav
+    document.querySelectorAll('.nav-btn').forEach((btn, i) => btn.classList.toggle('active', i === themeIndex));
+
+    // Easter egg
+    rollForEasterEgg();
+
+    if (skipIntro) {
+        spawnAll(theme, theme.animType);
+        showContent();
+        return;
     }
 
-    function scheduleBlink(light) {
-        if (!document.body.classList.contains('twinkle-mode')) return;
+    spawnAll(theme, theme.animType);
+    introTimeout = setTimeout(() => showContent(), GLOBAL_CONFIG.sequenceDuration + GLOBAL_CONFIG.stayLitDuration);
+}
 
-        if (activeLightsCount >= GLOBAL_CONFIG.maxSimultaneousLights) {
-            const retryDelay = Math.random() * 1000 + 500;
-            twinkleTimeouts.push(setTimeout(() => scheduleBlink(light), retryDelay));
-            return;
-        }
+function showContent() {
+    contentShown = true;
+    const content = document.getElementById('mainContent');
+    content.classList.add('visible');
+    document.getElementById('appVideo').play().catch(() => {});
+}
 
-        light.classList.add('active');
-        activeLightsCount++;
+window.switchTheme = function(i) {
+    document.getElementById('mainContent').classList.remove('visible');
+    document.getElementById('appVideo').pause();
+    clearTimeout(switchTimeout);
+    switchTimeout = setTimeout(() => startLightShow(i, true), 350);
+};
 
-        twinkleTimeouts.push(setTimeout(() => {
-            light.classList.remove('active');
-            activeLightsCount--;
-            
-            const offDuration = Math.random() * (GLOBAL_CONFIG.twinkleOffMax - GLOBAL_CONFIG.twinkleOffMin) + GLOBAL_CONFIG.twinkleOffMin;
-            twinkleTimeouts.push(setTimeout(() => scheduleBlink(light), offDuration));
+function setupNavButtons() {
+    const nav = document.getElementById('navButtonsContainer');
+    nav.innerHTML = '';
+    THEMES.forEach((theme, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'nav-btn' + (theme.isGolden ? ' golden' : '');
+        btn.textContent = theme.btnLabel;
+        btn.title = theme.name;
+        btn.onclick = () => switchTheme(i);
+        nav.appendChild(btn);
+    });
+}
 
-        }, GLOBAL_CONFIG.twinkleOnDuration));
+function rollForEasterEgg() {
+    const egg = document.getElementById('easterEggSquare');
+    egg.style.display = 'none';
+    if (Math.random() < 0.001) {
+        egg.style.top  = (5 + Math.floor(Math.random() * 90)) + '%';
+        egg.style.left = (5 + Math.floor(Math.random() * 90)) + '%';
+        egg.style.display = 'block';
     }
+}
+
+document.getElementById('easterEggSquare').addEventListener('click', () => {
+    alert("You found the hidden secret!");
+    const vid = document.getElementById('appVideo');
+    vid.src = "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    vid.load(); vid.play();
+    document.getElementById('appTitle').textContent = "SECRET FOUND";
+    document.getElementById('appLink').textContent = "big.buck.bunny";
+    document.getElementById('easterEggSquare').style.display = 'none';
+});
+
+// =====================================================================
+//  BOOT
+// =====================================================================
+initStars();
+setupNavButtons();
+requestAnimationFrame(loop);
+startLightShow(Math.floor(Math.random() * THEMES.length), false);
 </script>
-
 </body>
 </html>
+3863 bytes
+Done
