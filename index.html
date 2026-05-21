@@ -113,10 +113,10 @@
 const GLOBAL_CONFIG = {
     sequenceDuration: 5000,
     stayLitDuration:  2000,
-    // Physics
-    gravity:       0.04,
-    bounce:        0.55,   // energy retention on wall bounce
-    friction:      0.992,  // per-frame velocity damping
+    // Physics - made them floaty for u!
+    gravity:       0.0,
+    bounce:        0.95,   // energy retention on wall bounce
+    friction:      1.0,  // per-frame velocity damping
     maxOrbs:       48,
     spawnBurst:    8,      // orbs to spawn per intro wave
 };
@@ -283,7 +283,7 @@ function makeOrb(theme, spawnX, spawnY, spawnMode) {
             const angle = Math.random() * Math.PI * 2;
             const speed = randBetween(2, 12);
             vx = Math.cos(angle) * speed;
-            vy = Math.sin(angle) * speed - 4;
+            vy = Math.sin(angle) * speed;
             break;
         case 'rain':
             vx = randBetween(-1.5, 1.5);
@@ -300,7 +300,7 @@ function makeOrb(theme, spawnX, spawnY, spawnMode) {
         case 'spiral':
             const t = Math.random() * Math.PI * 4;
             vx = Math.cos(t) * randBetween(1, 8);
-            vy = Math.sin(t) * randBetween(1, 8) - 2;
+            vy = Math.sin(t) * randBetween(1, 8);
             break;
         case 'vortex':
             const cx = W / 2, cy = H / 2;
@@ -315,7 +315,7 @@ function makeOrb(theme, spawnX, spawnY, spawnMode) {
             break;
         default:
             vx = randBetween(-5, 5);
-            vy = randBetween(-8, -2);
+            vy = randBetween(-5, 5);
     }
 
     // Randomise every visual property independently per orb
@@ -332,9 +332,9 @@ function makeOrb(theme, spawnX, spawnY, spawnMode) {
     const trail        = [];
     const maxTrail     = randInt(0, 18);
     const trailAlpha   = randBetween(0.05, 0.35);
-    const bounceFactor = randBetween(0.3, 0.85);   // per-orb bounce
-    const gravity      = randBetween(0.01, 0.12);   // per-orb gravity
-    const drag         = randBetween(0.985, 0.999); // per-orb air drag
+    const bounceFactor = randBetween(0.8, 1.0);   // bouncy bouncy!
+    const gravity      = 0; // they float now >.<
+    const drag         = 1; // no air friction to stop them :3
     const flickerSpeed = randBetween(0.5, 4);
     const flickerAmp   = randBetween(0, 0.4);
     const birthTime    = performance.now();
@@ -650,9 +650,55 @@ function updateOrbs(now) {
         const rW = o.r * Math.max(o.scaleX, o.scaleY);
         if (o.x - rW < 0)      { o.x = rW;     o.vx = Math.abs(o.vx) * o.bounceFactor; }
         if (o.x + rW > W)      { o.x = W - rW; o.vx = -Math.abs(o.vx) * o.bounceFactor; }
-        if (o.y + rW > H)      { o.y = H - rW; o.vy = -Math.abs(o.vy) * o.bounceFactor;
-                                  o.vx *= 0.92; } // floor friction
+        if (o.y + rW > H)      { o.y = H - rW; o.vy = -Math.abs(o.vy) * o.bounceFactor; }
         if (o.y - rW < 0)      { o.y = rW;     o.vy = Math.abs(o.vy) * o.bounceFactor; }
+
+        // NEW: bounce off each other physics >.<
+        for (let j = i - 1; j >= 0; j--) {
+            const o2 = orbs[j];
+            const dx = o.x - o2.x;
+            const dy = o.y - o2.y;
+            const dist = Math.hypot(dx, dy);
+            
+            // basic circular collision checking!
+            const r1 = o.r * Math.max(o.scaleX, o.scaleY);
+            const r2 = o2.r * Math.max(o2.scaleX, o2.scaleY);
+            const minDist = r1 + r2;
+
+            if (dist < minDist && dist > 0) {
+                // push them apart so they dont stick
+                const overlap = minDist - dist;
+                const nx = dx / dist;
+                const ny = dy / dist;
+
+                const totalMass = o.mass + o2.mass;
+                const p1 = o2.mass / totalMass;
+                const p2 = o.mass / totalMass;
+
+                o.x += nx * overlap * p1;
+                o.y += ny * overlap * p1;
+                o2.x -= nx * overlap * p2;
+                o2.y -= ny * overlap * p2;
+
+                // transfer energy and bounce
+                const dvx = o.vx - o2.vx;
+                const dvy = o.vy - o2.vy;
+                const vn = dvx * nx + dvy * ny;
+
+                if (vn < 0) {
+                    const bounce = Math.min(o.bounceFactor, o2.bounceFactor);
+                    const impulse = -(1 + bounce) * vn / ((1/o.mass) + (1/o2.mass));
+                    
+                    const ix = impulse * nx;
+                    const iy = impulse * ny;
+
+                    o.vx += ix / o.mass;
+                    o.vy += iy / o.mass;
+                    o2.vx -= ix / o2.mass;
+                    o2.vy -= iy / o2.mass;
+                }
+            }
+        }
     }
 
     // Keep spawning in twinkle phase if low
@@ -771,5 +817,3 @@ startLightShow(Math.floor(Math.random() * THEMES.length), false);
 </script>
 </body>
 </html>
-3863 bytes
-Done
