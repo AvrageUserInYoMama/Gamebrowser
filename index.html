@@ -18,71 +18,104 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
+        /* Container for the lights to make clearing them easier */
+        #lightsContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            z-index: 1;
+        }
+
         .row {
             display: flex;
             justify-content: space-around;
             align-items: center;
             flex: 1; /* Each row takes equal vertical space */
             width: 100%;
-            opacity: 0;
-            transition: opacity 1.5s ease-in-out; /* Smooth fade in */
-        }
-
-        .row.visible {
-            opacity: 1;
         }
 
         .light {
-            /* Width and Height are now set via JS config, but we keep default here just in case */
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background-color: white; /* Fallback */
-            /* The bloom effect is created by multiple shadow layers */
-            box-shadow: 
-                0 0 15px 5px currentColor,
-                0 0 60px 15px currentColor,
-                0 0 100px 30px currentColor;
-            filter: brightness(1.5);
-            transform: scale(0.8);
-            transition: transform 2s ease-out;
+            /* Default base styles */
+            opacity: 0; /* Start invisible for custom animations */
+            transition: transform 2s ease-out, opacity 0.5s ease;
         }
 
-        /* Subtle pulse animation for the lights during the intro */
+        .light.visible {
+            opacity: 1;
+        }
+
+        /* --- THEME VISUAL STYLES --- */
+
+        /* THEME 1: ROUND POP (Default) */
+        .theme-pop .light {
+            border-radius: 50%;
+            filter: brightness(1.5);
+            box-shadow: 0 0 15px 5px currentColor, 0 0 60px 15px currentColor, 0 0 100px 30px currentColor;
+            transform: scale(0.8);
+        }
+
+        /* THEME 2: SQUARE CYBER */
+        .theme-cyber .light {
+            border-radius: 4px; 
+            filter: brightness(1.8) contrast(1.2);
+            box-shadow: 0 0 10px 2px currentColor, 0 0 40px 10px currentColor, 0 0 80px 20px currentColor;
+            transform: scale(0.9) rotate(45deg); 
+        }
+
+        /* THEME 3: SUNSET HAZE */
+        .theme-sunset .light {
+            border-radius: 50%;
+            filter: brightness(1.2) blur(5px); 
+            box-shadow: 0 0 20px 10px currentColor, 0 0 80px 30px currentColor, 0 0 120px 50px currentColor;
+            transform: scale(0.7);
+        }
+
+        /* NEW: SHARP (Hard squares, no rotate) */
+        .theme-sharp .light {
+            border-radius: 0;
+            filter: brightness(1.4);
+            box-shadow: 0 0 5px 2px currentColor, 0 0 20px 5px currentColor;
+            transform: scale(0.85);
+        }
+
+        /* NEW: SOFT (Large bloom, small core) */
+        .theme-soft .light {
+            border-radius: 50%;
+            filter: brightness(1.1) blur(2px);
+            box-shadow: 0 0 30px 10px currentColor, 0 0 60px 20px currentColor;
+            transform: scale(0.6);
+        }
+
+        /* Animation State: Intro Pulse */
         @keyframes pulse {
             0% { transform: scale(0.9); opacity: 0.8; }
             50% { transform: scale(1.1); opacity: 1; }
             100% { transform: scale(0.9); opacity: 0.8; }
         }
         
-        .row.visible .light {
+        .light.visible {
             transform: scale(1);
             animation: pulse 4s infinite ease-in-out;
         }
 
-        /* Class to trigger the fade out before twinkle mode */
-        body.fade-out .row {
+        /* Animation State: Fade Out */
+        body.fade-out .light {
             opacity: 0 !important;
             transition: opacity 2s ease-out;
         }
 
-        /* --- TWINKLE MODE STYLES --- */
-        /* Force rows to be visible (containers), but handle lights individually */
-        body.twinkle-mode .row {
-            opacity: 1 !important;
-            transition: none;
-        }
-
-        /* In twinkle mode, lights default to off/invisible */
+        /* Animation State: Twinkle Mode */
         body.twinkle-mode .light {
             opacity: 0; 
             transform: scale(0.8);
-            animation: none; /* Stop the synchronized pulsing */
-            /* Made transition much slower (2.5s) for a slower cycle */
+            animation: none; 
             transition: opacity 2.5s ease-in-out, transform 2.5s ease-in-out;
         }
 
-        /* When a specific light turns on in twinkle mode */
         body.twinkle-mode .light.active {
             opacity: 1;
             transform: scale(1.0);
@@ -98,11 +131,12 @@
             flex-direction: column;
             align-items: center;
             opacity: 0;
-            pointer-events: none; /* Click through when invisible */
+            pointer-events: none; 
             transition: opacity 2.5s ease-in-out;
-            z-index: 100; /* Ensure it sits on top of lights */
+            z-index: 100; 
             width: 80%;
             max-width: 600px;
+            max-height: 90vh; /* Ensure it fits on screen with many buttons */
         }
 
         .content-wrapper.visible {
@@ -110,7 +144,6 @@
             pointer-events: auto;
         }
 
-        /* The "Rectangle" box containing the video */
         .video-box {
             width: 100%;
             aspect-ratio: 16 / 9;
@@ -119,7 +152,8 @@
             box-shadow: 0 0 50px rgba(255, 255, 255, 0.1);
             border-radius: 8px;
             overflow: hidden;
-            margin-bottom: 30px; /* Space between box and text */
+            margin-bottom: 20px;
+            flex-shrink: 0; 
         }
 
         .video-box video {
@@ -129,286 +163,602 @@
             display: block;
         }
 
-        /* The semi-transparent box for the text */
         .text-box {
-            background: rgba(20, 20, 20, 0.55); /* Dark semi-transparent background */
-            padding: 30px 50px;
+            background: rgba(20, 20, 20, 0.85); 
+            padding: 20px 30px;
             border-radius: 20px;
             text-align: center;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px); /* Frosted glass effect */
+            backdrop-filter: blur(10px); 
             box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
-            width: 100%; /* Take full width of the wrapper */
-            box-sizing: border-box; /* Include padding in width calculation */
+            width: 100%; 
+            box-sizing: border-box; 
+            display: flex;
+            flex-direction: column;
+            max-height: 50vh; /* Limit height for scrollable buttons */
         }
 
-        /* Text Under the Rectangle */
         #appTitle {
-            margin: 0 0 15px 0;
-            font-size: 3rem;
+            margin: 0 0 10px 0;
+            font-size: 2.5rem;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 5px;
             color: #fff;
-            text-align: center;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 0, 255, 0.5);
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
             line-height: 1;
+            flex-shrink: 0;
         }
 
         #appLink {
-            font-size: 1.5rem;
-            color: #00FFFF; /* Neon Cyan */
+            font-size: 1.2rem;
+            color: #00FFFF;
             text-decoration: none;
             letter-spacing: 2px;
             font-weight: 300;
             text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
-            transition: all 0.3s ease;
-            border-bottom: 1px solid transparent;
+            margin-bottom: 15px;
+            flex-shrink: 0;
         }
 
-        #appLink:hover {
+        /* Navigation Buttons */
+        .nav-buttons {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap; /* Allow buttons to wrap to new lines */
+            overflow-y: auto; /* Scroll if too many buttons */
+            padding-right: 5px; /* Space for scrollbar */
+        }
+
+        /* Custom scrollbar for nav */
+        .nav-buttons::-webkit-scrollbar {
+            width: 6px;
+        }
+        .nav-buttons::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05); 
+            border-radius: 3px;
+        }
+        .nav-buttons::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2); 
+            border-radius: 3px;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #888;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            min-width: 30px;
+        }
+
+        .nav-btn:hover {
+            border-color: #fff;
             color: #fff;
-            border-bottom: 1px solid #fff;
-            text-shadow: 0 0 20px rgba(0, 255, 255, 1);
+        }
+
+        .nav-btn.active {
+            color: white;
+            border-color: #00FFFF;
+            background: rgba(0, 255, 255, 0.1);
+            text-shadow: 0 0 5px #00FFFF;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+        }
+
+        /* --- GOLDEN BUTTON STYLE --- */
+        .nav-btn.golden {
+            border-color: #FFD700;
+            color: #FFD700;
+            box-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+        }
+        
+        .nav-btn.golden:hover, .nav-btn.golden.active {
+            color: white;
+            border-color: #FFD700;
+            background: rgba(255, 215, 0, 0.2);
+            text-shadow: 0 0 5px #FFD700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+        }
+
+        /* THE EASTER EGG SQUARE */
+        #easterEggSquare {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: rgba(50, 50, 50, 0.5); 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 2000; 
+            cursor: pointer;
+            display: none; 
+            transition: background-color 0.3s;
+        }
+        
+        #easterEggSquare:hover {
+            background-color: rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
 <body>
 
+    <div id="lightsContainer"></div>
+    
+    <!-- The Hidden Square -->
+    <div id="easterEggSquare" title="?"></div>
+
     <!-- Central Content Wrapper -->
     <div class="content-wrapper" id="mainContent">
         
-        <!-- The Rectangle (Video Box) -->
         <div class="video-box">
-             <video id="appVideo" controls muted loop playsinline>
+             <video 
+                id="appVideo" 
+                controls 
+                muted 
+                loop 
+                playsinline>
                 <p>Your browser does not support the video tag.</p>
             </video>
         </div>
 
-        <!-- Text Under the Rectangle, now inside its own box -->
         <div class="text-box">
             <h1 id="appTitle">WEBSITE NAME</h1>
             <a id="appLink" href="#" target="_blank">visit website</a>
+            
+            <!-- Navigation Container (Populated by JS) -->
+            <div class="nav-buttons" id="navButtonsContainer">
+                <!-- Buttons will be injected here -->
+            </div>
         </div>
     </div>
 
 <script>
-    // --- USER CONFIGURATION START ---
-    const CONFIG = {
-        // Content Text
-        websiteName: "MY AWESOME SITE",
-        websiteLinkText: "www.mysite.com",
-        websiteLinkUrl: "https://www.google.com",
-
-        // Video Settings
-        // Replace this URL with your local file or a direct web link
-        videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-
-        // How long the whole sequence takes to complete (in milliseconds)
+    // --- CONFIGURATION ---
+    
+    // Global settings applied to all themes
+    const GLOBAL_CONFIG = {
         sequenceDuration: 5000, 
-        
-        // How long to wait after the last row appears before fading (in ms)
         stayLitDuration: 2000,
-
-        // Twinkle Mode Settings
-        maxSimultaneousLights: 10, // MAXIMUM number of lights allowed on at once
-        twinkleOffMin: 4000,      // Minimum time to stay dark (4s)
-        twinkleOffMax: 12000,     // Maximum time to stay dark (12s)
-        twinkleOnDuration: 3000,  // How long to stay lit (3s)
-
-        // Grid Layout
         numberOfRows: 5,
         lightsPerRow: 7,
         
-        // Visuals
-        lightSize: '100px', // Size of the circles
-        
-        // The list of "Popper" Neon colors to choose from
-        colors: [
-            '#FF00FF', // Neon Magenta
-            '#00FFFF', // Neon Cyan
-            '#39FF14', // Neon Green
-            '#FFFF00', // Neon Yellow
-            '#FF3131', // Neon Red
-            '#BC13FE', // Neon Purple
-            '#FF5F1F', // Neon Orange
-            '#FFFFFF', // White
-            '#4D4DFF', // Neon Blue
-            '#FF007F', // Bright Rose
-            '#E3FF00', // Electric Lime
-            '#00FF99', // Spring Green
-            '#9F00FF', // Vivid Violet
-            '#FF9900', // Vivid Orange
-            '#FF00CC', // Hot Magenta
-            '#00FFCC', // Neon Mint
-            '#FF3300', // Bright Red-Orange
-            '#CC00FF', // Electric Violet
-            '#007FFF', // Azure Radiance
-            '#FF1493', // Deep Pink
-            '#FFD700', // Neon Gold
-            '#7FFF00'  // Chartreuse
-        ]
+        // Twinkle Settings
+        maxSimultaneousLights: 10,
+        twinkleOffMin: 4000,
+        twinkleOffMax: 12000,
+        twinkleOnDuration: 3000,
     };
-    // --- USER CONFIGURATION END ---
 
+    // --- REAL WEB GAMES LIST (53 Games) ---
+    // Video links are now dynamically generated via GitHub Release (ferw) unless specified
+    const REAL_WEB_GAMES = [
+        // KEEP Type 2 Music videoSrc as provided before
+        { name: "Type 2 Music", url: "https://tinyurl.com/type2music", videoSrc: "https://github.com/AvrageUserInYoMama/Gamebrowser/raw/main/1128.mp4", isGolden: true },
+        
+        // REMOVE explicit videoSrc from others so generator uses the release URL
+        { name: "Paper Minecraft", url: "https://scratch.mit.edu/projects/10128407/embed" },
+        { name: "Crazy Cattle 3D", url: "https://www.crazycattle.org/index.html", isGolden: true },
+        { name: "A Dark Room", url: "https://adarkroom.doublespeakgames.com" },
+        { name: "Universal Paperclips", url: "https://www.decisionproblem.com/paperclips/" },
+        { name: "Spaceplan", url: "http://jhollands.co.uk/spaceplan/", isGolden: true },
+        { name: "Candy Box 2", url: "https://candybox2.github.io/" },
+        { name: "Sandspiel", url: "https://sandspiel.club/", isGolden: true},
+        { name: "Orb Farm", url: "https://orb.farm/" },
+        { name: "Slow Roads", url: "https://slowroads.io/", isGolden: true },
+        { name: "Hextris", url: "https://hextris.io/", isGolden: true },
+        { name: "2048", url: "https://play2048.co/", isGolden: true },
+        { name: "Breaklock", url: "https://maxwellito.github.io/breaklock/" },
+        { name: "The Password Game", url: "https://neal.fun/password-game/" },
+        { name: "Infinite Craft", url: "https://neal.fun/infinite-craft/" },
+        { name: "Absurd Trolley Problems", url: "https://neal.fun/absurd-trolley-problems/" },
+        { name: "I'm not a robot", url: "https://neal.fun/not-a-robot/" },
+        { name: "Evolve", url: "https://pmotschmann.github.io/Evolve/" },
+        { name: "Subway Surfers", url: "https://subway-surfersgame.github.io/#", isGolden: true },
+        { name: "Trimps", url: "https://trimps.github.io/" },
+        { name: "Bitburner", url: "https://danielyxie.github.io/bitburner/" },
+        { name: "Shark Game", url: "https://cirri.al/sharks/" },
+        { name: "Reactor Idle", url: "https://reactoridle.com/" },
+        { name: "Antimatter Dimensions", url: "https://ivark.github.io/" },
+        { name: "Synergism", url: "https://pseudo-corp.github.io/SynergismOfficial/" },
+        { name: "Mario Cart (Scratch)", url: "https://scratch.mit.edu/projects/1163263188/fullscreen/" },
+        { name: "Wordle", url: "https://wordleunlimited.org" },
+        { name: "Progress Knight", url: "https://ihtasham42.github.io/progress-knight/" },
+        { name: "CivClicker", url: "https://civclicker.sourceforge.net/civclicker/civclicker.html" },
+        { name: "Swarm Sim", url: "https://swarmsim.github.io/" },
+        { name: "Gridland", url: "https://gridland.doublespeakgames.com/" },
+        { name: "Townscaper", url: "https://oskarstalberg.com/Townscaper/" },
+        { name: "Bad Time Simulator", url: "https://jcw87.github.io/c2-sans-fight/", isGolden: true },
+        { name: "Fluid Simulation", url: "https://paveldogreat.github.io/WebGL-Fluid-Simulation/" },
+        { name: "HexGL", url: "http://hexgl.bkcore.com/" },
+        { name: "Astray", url: "http://www.astray.xyz/" },
+        { name: "Tanuki Sunset", url: "https://squidgan.itch.io/tanuki-sunset" },
+        { name: "Sort the Court", url: "https://graebor.itch.io/sort-the-court" },
+        { name: "Friday Night Funkin", url: "https://ninja-muffin24.itch.io/funkin" },
+        { name: "Celeste Classic", url: "https://mattmakesgames.itch.io/celeste" },
+        { name: "Spelunky HTML5", url: "https://yarkinds.github.io/spelunky-html5/" },
+        { name: "Super Mario 64 JS", url: "https://sm64js.com/" },
+        { name: "Minecraft Classic", url: "https://classic.minecraft.net/", isGolden: true },
+        { name: "Cube Slam", url: "https://cubeslam.com/" },
+        { name: "Quick Draw", url: "https://quickdraw.withgoogle.com/" },
+        { name: "GeoGuessr", url: "https://www.geoguessr.com/" },
+        { name: "City Guesser", url: "https://virtualvacation.us/guess" },
+        { name: "Drive & Listen", url: "https://driveandlisten.herokuapp.com/" },
+        { name: "Windows 93", url: "http://www.windows93.net/" },
+        { name: "Hacker Typer", url: "https://hackertyper.net/" },
+        { name: "The Useless Web", url: "https://theuselessweb.com/" },
+        { name: "QWOP", url: "https://www.foddy.net/Athletics.html" },
+        { name: "Line Rider", url: "https://www.linerider.com/", isGolden: true },
+        { name: "More coming soon!", url: "null" }
+    ];
+
+    const THEMES = [];
+
+    // --- POPULATE THEMES FROM GAME LIST ---
+    (function initThemes() {
+        const styles = ["theme-pop", "theme-cyber", "theme-sunset", "theme-sharp", "theme-soft"];
+        const anims = ["topDown", "bottomUp", "randomNoise"];
+        
+        // Helper to get random item
+        const getRand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+        REAL_WEB_GAMES.forEach((game, index) => {
+            
+            // Format link text: "Game Name" -> "gamename.com"
+            const cleanName = game.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            const webLinkText = `${cleanName}.com`;
+
+            const randStyle = getRand(styles);
+            const randAnim = getRand(anims);
+            
+            // LOGIC FOR VIDEO LINK:
+            // If explicit videoSrc is provided (like for Type 2 Music), use it.
+            // Otherwise, construct it using the pattern: releases/download/ferw/{Name.With.Dots}.mkv
+            let videoUrl;
+            if (game.videoSrc) {
+                videoUrl = game.videoSrc;
+            } else {
+                // CHANGED: Replace spaces with dots (e.g. "Paper Minecraft" -> "Paper.Minecraft.mkv")
+                const fileName = game.name.replace(/\s+/g, '.');
+                // Using the specific release tag 'ferw'
+                videoUrl = `https://github.com/AvrageUserInYoMama/Gamebrowser/releases/download/ferw/${fileName}.mkv`;
+            }
+            
+            // Generate a random color palette of 6 colors
+            const palette = [];
+            for(let c=0; c<8; c++) {
+                const hue = Math.floor(Math.random() * 360);
+                const sat = 80 + Math.floor(Math.random() * 20); // 80-100%
+                const light = 50 + Math.floor(Math.random() * 40); // 50-90%
+                palette.push(`hsl(${hue}, ${sat}%, ${light}%)`);
+            }
+
+            THEMES.push({
+                name: game.name,
+                btnLabel: `${index + 1}`, // Page 1, 2, 3...
+                className: randStyle,
+                animationType: randAnim,
+                lightSize: Math.floor(Math.random() * 40 + 70) + 'px', 
+                isGolden: game.isGolden || false, // Pass golden status
+                content: {
+                    title: game.name.toUpperCase(),
+                    linkText: webLinkText,
+                    linkUrl: game.url, // Actual real URL
+                    videoSrc: videoUrl // Constructed or explicit URL
+                },
+                colors: palette
+            });
+        });
+    })();
+
+    // --- STATE MANAGEMENT ---
+    let currentIntervalId = null;
+    let twinkleTimeouts = [];
+    let activeLightsCount = 0;
+    
+    // Initialize
     document.addEventListener('DOMContentLoaded', () => {
-        const container = document.body;
+        setupNavButtons();
+        setupEasterEggListener();
+
+        // Pick a random start theme index
+        const randomStart = Math.floor(Math.random() * THEMES.length);
+        startLightShow(randomStart, false);
+    });
+
+    function setupNavButtons() {
+        const navContainer = document.getElementById('navButtonsContainer');
+        navContainer.innerHTML = ''; // Clear existing
+
+        THEMES.forEach((theme, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-btn';
+            
+            // Apply Golden Class if applicable
+            if (theme.isGolden) {
+                btn.classList.add('golden');
+            }
+
+            btn.textContent = theme.btnLabel;
+            btn.title = theme.name; // Tooltip shows full game name
+            btn.onclick = () => switchTheme(index);
+            navContainer.appendChild(btn);
+        });
+    }
+
+    // Handle Content Updates based on Theme
+    function setupContent(theme) {
+        document.getElementById('appTitle').textContent = theme.content.title;
+        const link = document.getElementById('appLink');
+        link.textContent = theme.content.linkText;
+        link.href = theme.content.linkUrl;
         
-        // Set Text from Config
-        document.getElementById('appTitle').textContent = CONFIG.websiteName;
+        // Update video src directly
+        const vid = document.getElementById('appVideo');
+        vid.src = theme.content.videoSrc;
+        vid.load(); // Reload the video element
+    }
+
+    // --- EASTER EGG LOGIC ---
+    function setupEasterEggListener() {
+        const egg = document.getElementById('easterEggSquare');
+        egg.addEventListener('click', () => {
+            alert("Congratulations! You found the hidden secret!");
+            
+            // Switch to Big Buck Bunny (Direct MP4)
+            const vid = document.getElementById('appVideo');
+            vid.src = "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"; 
+            vid.load();
+            vid.play();
+            
+            document.getElementById('appTitle').textContent = "SECRET FOUND";
+            document.getElementById('appLink').textContent = "big.buck.bunny";
+            
+            egg.style.display = 'none'; // Hide after finding
+        });
+    }
+
+    function rollForEasterEgg() {
+        const egg = document.getElementById('easterEggSquare');
+        egg.style.display = 'none'; // Reset to hidden
         
-        const linkElement = document.getElementById('appLink');
-        linkElement.textContent = CONFIG.websiteLinkText;
-        linkElement.href = CONFIG.websiteLinkUrl;
+        // 1 in 1000 chance
+        const chance = Math.random();
+        
+        if (chance < 0.001) { 
+            // SUCCESS!
+            const randomTop = Math.floor(Math.random() * 90) + 5; // 5% to 95%
+            const randomLeft = Math.floor(Math.random() * 90) + 5;
+            
+            egg.style.top = randomTop + '%';
+            egg.style.left = randomLeft + '%';
+            egg.style.display = 'block';
+            console.log("Easter Egg Spawned at", randomTop, randomLeft);
+        }
+    }
 
-        // Set Video Source
-        const videoElement = document.getElementById('appVideo');
-        videoElement.src = CONFIG.videoSource;
+    // Exposed to global scope for buttons
+    window.switchTheme = function(themeIndex) {
+        // Reset everything
+        stopAllAnimations();
+        
+        // Hide content temporarily to focus on the new light show
+        const content = document.getElementById('mainContent');
+        content.classList.remove('visible');
+        
+        // Stop video playback
+        const vid = document.getElementById('appVideo');
+        vid.pause();
 
-        // Calculate timing based on config
-        const intervalTime = CONFIG.sequenceDuration / CONFIG.numberOfRows;
+        // Brief delay before starting new show
+        setTimeout(() => {
+            startLightShow(themeIndex, true);
+        }, 500);
+    };
 
-        // Track available colors to prevent repeats
+    function stopAllAnimations() {
+        if (currentIntervalId) clearInterval(currentIntervalId);
+        twinkleTimeouts.forEach(t => clearTimeout(t));
+        twinkleTimeouts = [];
+        activeLightsCount = 0;
+        
+        document.body.className = ''; // Remove all theme/mode classes
+        document.getElementById('lightsContainer').innerHTML = ''; // Clear DOM
+    }
+
+    function startLightShow(themeIndex, skipIntro = false) {
+        const theme = THEMES[themeIndex];
+        
+        // Update Content for this page
+        setupContent(theme);
+        
+        // Try to spawn Easter Egg
+        rollForEasterEgg();
+
+        const container = document.getElementById('lightsContainer');
+        
+        // Apply Theme Class to Body
+        document.body.classList.add(theme.className);
+        
+        // Update Nav Button Active State
+        const btns = document.querySelectorAll('.nav-btn');
+        btns.forEach((btn, idx) => {
+            if(idx === themeIndex) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+
+        // 1. GENERATE GRID (But keep lights invisible first)
+        const rows = [];
+        let allLightsFlat = []; 
         let availableColors = [];
 
-        function getRandomPopColor(currentRowColors = []) {
-            // If we ran out of colors, refill the bag with the original list
-            if (availableColors.length === 0) {
-                availableColors = [...CONFIG.colors];
-            }
+        function getColor(currentRowColors) {
+            if (availableColors.length === 0) availableColors = [...theme.colors];
             
-            // Filter available colors to try and find ones NOT in the current row
             const candidates = availableColors.filter(c => !currentRowColors.includes(c));
+            let selection = candidates.length > 0 
+                ? candidates[Math.floor(Math.random() * candidates.length)]
+                : availableColors[Math.floor(Math.random() * availableColors.length)];
             
-            let selection;
+            const idx = availableColors.indexOf(selection);
+            if (idx > -1) availableColors.splice(idx, 1);
             
-            if (candidates.length > 0) {
-                selection = candidates[Math.floor(Math.random() * candidates.length)];
-            } else {
-                selection = availableColors[Math.floor(Math.random() * availableColors.length)];
-            }
-            
-            const index = availableColors.indexOf(selection);
-            if (index > -1) {
-                availableColors.splice(index, 1);
-            }
-
             return selection;
         }
 
-        // Generate all rows immediately
-        const rows = [];
-        for (let r = 0; r < CONFIG.numberOfRows; r++) {
+        for (let r = 0; r < GLOBAL_CONFIG.numberOfRows; r++) {
             const row = document.createElement('div');
             row.classList.add('row');
-            
             const rowColors = [];
 
-            for (let i = 0; i < CONFIG.lightsPerRow; i++) {
+            for (let i = 0; i < GLOBAL_CONFIG.lightsPerRow; i++) {
                 const light = document.createElement('div');
                 light.classList.add('light');
+                light.style.width = theme.lightSize;
+                light.style.height = theme.lightSize;
                 
-                light.style.width = CONFIG.lightSize;
-                light.style.height = CONFIG.lightSize;
-                
-                const color = getRandomPopColor(rowColors);
+                const color = getColor(rowColors);
                 rowColors.push(color);
-                
                 light.style.color = color;
                 light.style.backgroundColor = color;
                 
                 row.appendChild(light);
+                allLightsFlat.push(light);
             }
             container.appendChild(row);
             rows.push(row);
         }
 
-        // --- Twinkle Mode Logic ---
-
-        // Counter to track how many lights are currently ON
-        let activeLightsCount = 0;
-
-        function startTwinkleMode() {
-            // Enable Twinkle Mode CSS
-            document.body.classList.add('twinkle-mode');
+        // 2. CHECK: SKIP INTRO OR RUN ANIMATION
+        if (skipIntro) {
+            // IMMEDIATE MODE
+            startTwinkleMode();
             
-            const allLights = document.querySelectorAll('.light');
+            const content = document.getElementById('mainContent');
+            content.classList.add('visible');
             
-            allLights.forEach(light => {
-                // Give each light a random start delay spread out over the max off time
-                // to prevent them all starting at once
-                const startDelay = Math.random() * CONFIG.twinkleOffMax;
-                setTimeout(() => {
-                    scheduleBlink(light);
-                }, startDelay);
-            });
+            const vid = document.getElementById('appVideo');
+            vid.play().catch(e => console.log("Autoplay blocked:", e));
+            
+            return; // Exit function, don't run animation logic below
         }
 
-        function scheduleBlink(light) {
-            // CHECK: Are there too many lights on already?
-            if (activeLightsCount >= CONFIG.maxSimultaneousLights) {
-                // If yes, wait a short random time (0.5s - 1.5s) and try again
-                const retryDelay = Math.random() * 1000 + 500;
-                setTimeout(() => {
-                    scheduleBlink(light);
-                }, retryDelay);
-                return; // Stop here, don't turn on yet
+        // 3. RUN ANIMATION BASED ON THEME TYPE (Only if skipIntro is false)
+        
+        // Callback function to run when animation finishes
+        const onAnimationComplete = () => {
+            twinkleTimeouts.push(setTimeout(() => {
+                document.body.classList.add('fade-out');
+                
+                twinkleTimeouts.push(setTimeout(() => {
+                     // Clean up visible class from manual animation
+                     document.querySelectorAll('.light').forEach(l => l.classList.remove('visible'));
+                     document.body.classList.remove('fade-out'); 
+                     
+                     startTwinkleMode(); 
+                     
+                     // Show Content
+                     const content = document.getElementById('mainContent');
+                     content.classList.add('visible');
+                     
+                     // Play Video (Autoplay requires muted usually)
+                     const vid = document.getElementById('appVideo');
+                     vid.play().catch(e => console.log("Autoplay blocked:", e));
+
+                }, 2000)); 
+
+            }, GLOBAL_CONFIG.stayLitDuration));
+        };
+
+        // --- ANIMATION STRATEGIES ---
+
+        if (theme.animationType === 'topDown') {
+            const intervalTime = GLOBAL_CONFIG.sequenceDuration / rows.length;
+            let currentRow = 0;
+
+            currentIntervalId = setInterval(() => {
+                if (currentRow < rows.length) {
+                    const lightsInRow = rows[currentRow].querySelectorAll('.light');
+                    lightsInRow.forEach(l => l.classList.add('visible'));
+                    currentRow++;
+                } else {
+                    clearInterval(currentIntervalId);
+                    onAnimationComplete();
+                }
+            }, intervalTime);
+
+        } else if (theme.animationType === 'bottomUp') {
+            const intervalTime = GLOBAL_CONFIG.sequenceDuration / rows.length;
+            let currentRow = rows.length - 1; 
+
+            currentIntervalId = setInterval(() => {
+                if (currentRow >= 0) {
+                    const lightsInRow = rows[currentRow].querySelectorAll('.light');
+                    lightsInRow.forEach(l => l.classList.add('visible'));
+                    currentRow--;
+                } else {
+                    clearInterval(currentIntervalId);
+                    onAnimationComplete();
+                }
+            }, intervalTime);
+
+        } else if (theme.animationType === 'randomNoise') {
+            // Shuffle array of all lights
+            for (let i = allLightsFlat.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allLightsFlat[i], allLightsFlat[j]] = [allLightsFlat[j], allLightsFlat[i]];
             }
 
-            // 1. Turn the light ON and increment counter
-            light.classList.add('active');
-            activeLightsCount++;
+            const intervalTime = GLOBAL_CONFIG.sequenceDuration / allLightsFlat.length;
+            let currentLightIdx = 0;
 
-            // 2. Wait for the ON duration
-            setTimeout(() => {
-                // 3. Turn the light OFF and decrement counter
-                light.classList.remove('active');
-                activeLightsCount--;
+            currentIntervalId = setInterval(() => {
+                if (currentLightIdx < allLightsFlat.length) {
+                    allLightsFlat[currentLightIdx].classList.add('visible');
+                    currentLightIdx++;
+                } else {
+                    clearInterval(currentIntervalId);
+                    onAnimationComplete();
+                }
+            }, intervalTime);
+        }
+    }
 
-                // 4. Wait for a random OFF duration before restarting the cycle
-                const offDuration = Math.random() * (CONFIG.twinkleOffMax - CONFIG.twinkleOffMin) + CONFIG.twinkleOffMin;
-                
-                setTimeout(() => {
-                    scheduleBlink(light);
-                }, offDuration);
+    function startTwinkleMode() {
+        document.body.classList.add('twinkle-mode');
+        const allLights = document.querySelectorAll('.light');
+        
+        allLights.forEach(light => {
+            const startDelay = Math.random() * GLOBAL_CONFIG.twinkleOffMax;
+            twinkleTimeouts.push(setTimeout(() => {
+                scheduleBlink(light);
+            }, startDelay));
+        });
+    }
 
-            }, CONFIG.twinkleOnDuration);
+    function scheduleBlink(light) {
+        if (!document.body.classList.contains('twinkle-mode')) return;
+
+        if (activeLightsCount >= GLOBAL_CONFIG.maxSimultaneousLights) {
+            const retryDelay = Math.random() * 1000 + 500;
+            twinkleTimeouts.push(setTimeout(() => scheduleBlink(light), retryDelay));
+            return;
         }
 
-        // --- Main Sequence Logic ---
-        let currentRow = 0;
+        light.classList.add('active');
+        activeLightsCount++;
 
-        const intervalId = setInterval(() => {
-            if (currentRow < rows.length) {
-                rows[currentRow].classList.add('visible');
-                currentRow++;
-            } else {
-                clearInterval(intervalId);
-                
-                // Sequence finished, wait then fade out
-                setTimeout(() => {
-                    document.body.classList.add('fade-out');
-                    
-                    // After fade out is complete, switch to Twinkle Mode AND show content
-                    setTimeout(() => {
-                         rows.forEach(r => r.classList.remove('visible')); // Clean up old class
-                         document.body.classList.remove('fade-out'); // Remove fade class
-                         
-                         startTwinkleMode(); // Start new mode
-                         
-                         // Show the central content
-                         document.getElementById('mainContent').classList.add('visible');
-                         
-                         // Try to auto-play video (browsers might block unmuted autoplay)
-                         const vid = document.getElementById('appVideo');
-                         vid.play().catch(e => console.log("Autoplay prevented:", e));
+        twinkleTimeouts.push(setTimeout(() => {
+            light.classList.remove('active');
+            activeLightsCount--;
+            
+            const offDuration = Math.random() * (GLOBAL_CONFIG.twinkleOffMax - GLOBAL_CONFIG.twinkleOffMin) + GLOBAL_CONFIG.twinkleOffMin;
+            twinkleTimeouts.push(setTimeout(() => scheduleBlink(light), offDuration));
 
-                    }, 2000); 
-
-                }, CONFIG.stayLitDuration);
-            }
-        }, intervalTime);
-    });
+        }, GLOBAL_CONFIG.twinkleOnDuration));
+    }
 </script>
 
 </body>
